@@ -1,0 +1,3 @@
+package redis
+
+// Redis connection

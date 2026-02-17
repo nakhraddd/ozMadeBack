@@ -1,0 +1,3 @@
+package models
+
+// Chat model
