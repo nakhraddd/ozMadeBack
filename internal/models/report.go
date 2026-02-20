@@ -4,12 +4,10 @@ import (
 	"time"
 )
 
-type Order struct {
+type Report struct {
 	ID        uint `gorm:"primaryKey"`
 	UserID    uint
 	ProductID uint
-	Quantity  int
-	TotalCost float64
-	Status    string
+	Reason    string
 	CreatedAt time.Time
 }

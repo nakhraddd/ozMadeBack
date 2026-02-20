@@ -8,14 +8,26 @@ import (
 	"google.golang.org/api/option"
 	"log"
 	"net/http"
+	"os"
 	"ozMadeBack/config"
+	"ozMadeBack/internal/database"
+	"ozMadeBack/internal/models"
 	"strings"
 )
 
 var Client *auth.Client
 
 func InitFirebase() {
-	opt := option.WithCredentialsFile(config.GetEnv("FIREBASE_SERVICE_ACCOUNT_JSON_PATH"))
+	serviceAccountPath := config.GetEnv("FIREBASE_SERVICE_ACCOUNT_JSON_PATH")
+	if serviceAccountPath == "" {
+		log.Fatal("FIREBASE_SERVICE_ACCOUNT_JSON_PATH environment variable is not set")
+	}
+
+	if _, err := os.Stat(serviceAccountPath); os.IsNotExist(err) {
+		log.Fatalf("Firebase service account file not found at: %s", serviceAccountPath)
+	}
+
+	opt := option.WithCredentialsFile(serviceAccountPath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		log.Fatalf("error initializing app: %v\n", err)
@@ -41,7 +53,13 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("firebaseToken", token)
+		var user models.User
+		if err := database.DB.Where("firebase_uid = ?", token.UID).First(&user).Error; err != nil {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "User not found"})
+			return
+		}
+
+		c.Set("user_id", user.ID)
 		c.Next()
 	}
 }

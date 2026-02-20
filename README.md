@@ -83,7 +83,7 @@ The chat system uses WebSockets for real-time messaging and FCM for push notific
 ## Getting Started
 
 ### Prerequisites
-*   Go (version 1.19 or later)
+*   Go (version 1.22 or later)
 *   Docker (optional, for containerized deployment)
 
 ### Running the Application
@@ -98,3 +98,10 @@ To build the application binary:
 make build
 ```
 The binary will be located in the `./out/` directory.
+
+### Docker
+To build and run the Docker container:
+```sh
+docker build -t ozmade-backend .
+docker run -p 8080:8080 ozmade-backend
+```
