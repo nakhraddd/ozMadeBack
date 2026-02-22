@@ -69,12 +69,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Wait for SSH to be available
-        uses: lewagon/wait-on-ssh-action@v1.3.0
+        uses: nick-invision/wait-for-ssh-action@v1.0.0
         with:
           host: ${{ needs.provision.outputs.instance_ip }}
           username: gcp-user
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 120000 # 2 minutes
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 120 # 2 minutes
 
       - name: Run Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v2
@@ -121,7 +121,7 @@ jobs:
           # Database connection string for Cloud SQL
           echo "DATABASE_URL=host=/cloudsql/${{ needs.provision.outputs.db_connection_name }} user=ozmade_user password=${{ secrets.DB_PASSWORD }} dbname=ozmadeback_db sslmode=disable" >> .env
           # Firebase and GCS secrets
-          echo "FIREBASE_CREDENTIALS=${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}" >> .env
+          echo "FIREBASE_CREDENTIALS_CONTENT=${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}" >> .env
           echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
 
       - name: Copy deployment files to server
