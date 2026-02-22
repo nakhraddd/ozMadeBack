@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
+
+	"github.com/gin-gonic/gin"
 )
 
 type SellerHandler struct {
@@ -96,12 +97,12 @@ func (h *SellerHandler) CreateProduct(c *gin.Context) {
 
 	product := models.Product{
 		SellerID:    seller.ID,
-		Name:        input.Name,
+		Title:       input.Name,
 		Description: input.Description,
-		Price:       input.Price,
+		Cost:        input.Price,
 		Type:        input.Type,
 		Address:     input.Address,
-		ImageURL:    input.ImageURL,
+		ImageName:   input.ImageURL,
 	}
 
 	if err := database.DB.Create(&product).Error; err != nil {
@@ -142,12 +143,12 @@ func (h *SellerHandler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	product.Name = input.Name
+	product.Title = input.Name
 	product.Description = input.Description
-	product.Price = input.Price
+	product.Cost = input.Price
 	product.Type = input.Type
 	product.Address = input.Address
-	product.ImageURL = input.ImageURL
+	product.ImageName = input.ImageURL
 
 	if err := database.DB.Save(&product).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})

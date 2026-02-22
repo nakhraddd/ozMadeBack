@@ -6,6 +6,7 @@ import (
 
 type Product struct {
 	ID            uint `gorm:"primaryKey"`
+	SellerID      uint
 	Title         string
 	Description   string
 	Type          string
