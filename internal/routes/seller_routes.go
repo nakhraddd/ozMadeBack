@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"firebase.google.com/go/auth"
+	"firebase.google.com/go/v4/auth"
 	"github.com/gin-gonic/gin"
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/middleware"

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"ozMadeBack/internal/database"
@@ -47,7 +48,7 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 
 func (h *SellerHandler) GetUploadIDURL(c *gin.Context) {
 	userID := c.GetUint("userID")
-	objectName := "seller_ids/" + string(userID) + ".jpg"
+	objectName := "seller_ids/" + strconv.FormatUint(uint64(userID), 10) + ".jpg"
 	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate upload URL"})
