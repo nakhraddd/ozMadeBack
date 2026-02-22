@@ -1,0 +1,151 @@
+name: OzMadeBack CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+  provision:
+    name: Provision Infrastructure
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    outputs:
+      instance_ip: ${{ steps.terraform-output.outputs.instance_ip }}
+      db_connection_name: ${{ steps.terraform-output.outputs.db_connection_name }}
+      gcs_bucket_name: ${{ steps.terraform-output.outputs.gcs_bucket_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init -backend-config="bucket=${{ secrets.GCP_TF_STATE_BUCKET }}"
+
+      - name: Terraform Apply
+        run: |
+          terraform -chdir=terraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}"
+
+      - name: Store Terraform Outputs
+        id: terraform-output
+        run: |
+          echo "instance_ip=$(terraform -chdir=terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
+          echo "db_connection_name=$(terraform -chdir=terraform output -raw db_connection_name)" >> $GITHUB_OUTPUT
+          echo "gcs_bucket_name=$(terraform -chdir=terraform output -raw gcs_bucket_name)" >> $GITHUB_OUTPUT
+
+  configure:
+    name: Configure Server with Ansible
+    needs: provision
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for SSH to be available
+        uses: lewagon/wait-on-ssh-action@v1.3.0
+        with:
+          host: ${{ needs.provision.outputs.instance_ip }}
+          username: gcp-user
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 120000 # 2 minutes
+
+      - name: Run Ansible Playbook
+        uses: dawidd6/action-ansible-playbook@v2
+        with:
+          playbook: ansible/playbook.yml
+          inventory: |
+            [app_server]
+            ${{ needs.provision.outputs.instance_ip }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          user: gcp-user
+
+  build-and-push-docker:
+    name: Build and Push Docker Image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ozmadeback:latest
+
+  deploy:
+    name: Deploy to VM
+    needs: [provision, configure, build-and-push-docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
+          # Database connection string for Cloud SQL
+          echo "DATABASE_URL=host=/cloudsql/${{ needs.provision.outputs.db_connection_name }} user=ozmade_user password=${{ secrets.DB_PASSWORD }} dbname=ozmadeback_db sslmode=disable" >> .env
+          # Firebase and GCS secrets
+          echo "FIREBASE_CREDENTIALS=${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}" >> .env
+          echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
+
+      - name: Copy deployment files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ needs.provision.outputs.instance_ip }}
+          username: gcp-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml,.env"
+          target: "/home/gcp-user/app"
+          rm: true
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.provision.outputs.instance_ip }}
+          username: gcp-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/gcp-user/app
+            # Ensure the gcp-user can use docker without sudo
+            newgrp docker || true
+            # Pull the latest image and restart the services
+            docker compose pull
+            docker compose up -d --remove-orphans
+            echo "🚀 Deployment Successful!"
+            docker compose ps

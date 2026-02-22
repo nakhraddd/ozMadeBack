@@ -1,0 +1,5 @@
+- name: Configure Application Server
+  hosts: app_server
+  become: true # Run tasks with sudo
+  roles:
+    - docker
