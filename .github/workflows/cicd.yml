@@ -120,13 +120,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create .env file
+      - name: Prepare deployment files
         run: |
           echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
           # Database connection string for Cloud SQL
           echo "DATABASE_URL=host=/cloudsql/${{ needs.provision.outputs.db_connection_name }} user=ozmade_user password=${{ secrets.DB_PASSWORD }} dbname=ozmadeback_db sslmode=disable" >> .env
-          # Firebase and GCS secrets
-          echo "FIREBASE_CREDENTIALS_CONTENT=${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}" >> .env
+          
+          # Write Firebase credentials to a JSON file
+          echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > serviceAccountKey.json
+          
+          # Point the env var to the file path on the server
+          echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/serviceAccountKey.json" >> .env
+          
           echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
 
       - name: Copy deployment files to server
@@ -135,7 +140,7 @@ jobs:
           host: ${{ needs.provision.outputs.instance_ip }}
           username: gcp-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,.env"
+          source: "docker-compose.yml,.env,firebase_credentials.json"
           target: "/home/gcp-user/app"
           rm: true
 
