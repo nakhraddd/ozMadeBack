@@ -69,12 +69,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Wait for SSH to be available
-        uses: nick-invision/wait-for-ssh-action@v1.0.0
-        with:
-          host: ${{ needs.provision.outputs.instance_ip }}
-          username: gcp-user
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 120 # 2 minutes
+        run: |
+          echo "Waiting for SSH on ${{ needs.provision.outputs.instance_ip }}..."
+          end_time=$(( $(date +%s) + 120 ))
+          while ! nc -z -w5 ${{ needs.provision.outputs.instance_ip }} 22; do
+            if (( $(date +%s) > end_time )); then
+              echo "Timeout waiting for SSH."
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "SSH is available."
 
       - name: Run Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v2
