@@ -5,6 +5,7 @@ terraform {
       version = "~> 5.0"
     }
   }
+
   backend "gcs" {
     # Replace with your own bucket name for storing Terraform state
     bucket = "ozmadeback-tf-state-bucket"
@@ -41,6 +42,9 @@ resource "google_compute_instance" "app_server" {
   name         = "ozmadeback-vm"
   machine_type = "e2-medium" # e2-medium is a cost-effective choice
   zone         = "${var.region}-a"
+
+  # Allow Terraform to stop the instance to apply certain changes.
+  allow_stopping_for_update = true
 
   boot_disk {
     initialize_params {
