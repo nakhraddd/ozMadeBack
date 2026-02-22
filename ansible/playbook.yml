@@ -1,5 +1,6 @@
 - name: Configure Application Server
   hosts: app_server
+  remote_user: gcp-user
   become: true # Run tasks with sudo
   roles:
     - docker

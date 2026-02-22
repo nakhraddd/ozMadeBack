@@ -89,7 +89,7 @@ jobs:
             [app_server]
             ${{ needs.provision.outputs.instance_ip }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          user: gcp-user
+          # Removed invalid 'user' input. Remote user is now set in playbook.yml
 
   build-and-push-docker:
     name: Build and Push Docker Image
