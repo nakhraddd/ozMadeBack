@@ -11,5 +11,6 @@ type User struct {
 	Email       string
 	Address     string
 	Role        string `gorm:"default:'buyer'"`
+	IsSeller    bool   `gorm:"default:false"`
 	CreatedAt   time.Time
 }

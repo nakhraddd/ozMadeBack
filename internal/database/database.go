@@ -1,24 +1,26 @@
 package database
 
 import (
+	"fmt"
+	"ozMadeBack/internal/models"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
-	"ozMadeBack/config"
-	"ozMadeBack/internal/models"
 )
 
 var DB *gorm.DB
 
-func InitDatabase() {
+func Connect(dsn string) {
 	var err error
-	dsn := config.GetEnv("DB_DSN")
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		panic("failed to connect database")
 	}
 
-	if err := DB.AutoMigrate(&models.User{}, &models.Product{}, &models.Comment{}, &models.Favorite{}, &models.Order{}, &models.Report{}); err != nil {
-		log.Fatalf("Failed to auto-migrate database: %v", err)
-	}
+	fmt.Println("Connection Opened to Database")
+}
+
+func Migrate() {
+	DB.AutoMigrate(&models.User{}, &models.Seller{}, &models.Product{})
+	fmt.Println("Database Migrated")
 }

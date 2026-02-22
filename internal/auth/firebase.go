@@ -18,9 +18,13 @@ import (
 var Client *auth.Client
 
 func InitFirebase() {
-	serviceAccountPath := config.GetEnv("FIREBASE_SERVICE_ACCOUNT_JSON_PATH")
+	serviceAccountPath := config.GetEnv("FIREBASE_CREDENTIALS")
 	if serviceAccountPath == "" {
-		log.Fatal("FIREBASE_SERVICE_ACCOUNT_JSON_PATH environment variable is not set")
+		serviceAccountPath = config.GetEnv("FIREBASE_SERVICE_ACCOUNT_JSON_PATH")
+	}
+
+	if serviceAccountPath == "" {
+		log.Fatal("FIREBASE_CREDENTIALS environment variable is not set")
 	}
 
 	if _, err := os.Stat(serviceAccountPath); os.IsNotExist(err) {
@@ -53,8 +57,21 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		c.Set("firebaseToken", token)
+
 		var user models.User
 		if err := database.DB.Where("firebase_uid = ?", token.UID).First(&user).Error; err != nil {
+			// If user not found, we might still want to proceed for SyncUser endpoint
+			// But for other endpoints, we might want to block.
+			// However, SyncUser is protected by this middleware.
+			// If SyncUser is called, the user might not exist in DB yet.
+
+			// Check if the request path is /auth/sync, if so, allow proceed without user_id
+			if c.FullPath() == "/auth/sync" {
+				c.Next()
+				return
+			}
+
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "User not found"})
 			return
 		}
