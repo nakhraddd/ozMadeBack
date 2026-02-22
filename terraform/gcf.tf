@@ -6,10 +6,8 @@ resource "google_storage_bucket" "storage_bucket" {
 
   uniform_bucket_level_access = true
 
-  # Make objects publicly readable (for product images)
-  iam_config {
-    public_access_prevention = "inherited"
-  }
+  # This setting controls public access prevention. "inherited" is the default.
+  public_access_prevention = "inherited"
 }
 
 # Grant allUsers the Storage Object Viewer role to make objects public
