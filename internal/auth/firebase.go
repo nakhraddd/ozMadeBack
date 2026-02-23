@@ -2,10 +2,6 @@ package auth
 
 import (
 	"context"
-	"firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/auth"
-	"github.com/gin-gonic/gin"
-	"google.golang.org/api/option"
 	"log"
 	"net/http"
 	"os"
@@ -13,14 +9,19 @@ import (
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"strings"
+
+	"firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/auth"
+	"github.com/gin-gonic/gin"
+	"google.golang.org/api/option"
 )
 
 var Client *auth.Client
 
 func InitFirebase() {
-	serviceAccountPath := config.GetEnv("FIREBASE_CREDENTIALS")
+	serviceAccountPath := config.GetEnv("FIREBASE_CREDENTIALS", "$HOME/firebase_credentials.json")
 	if serviceAccountPath == "" {
-		serviceAccountPath = config.GetEnv("FIREBASE_SERVICE_ACCOUNT_JSON_PATH")
+		serviceAccountPath = config.GetEnv("FIREBASE_SERVICE_ACCOUNT_JSON_PATH", "$HOME/firebase_credentials.json")
 	}
 
 	if serviceAccountPath == "" {
