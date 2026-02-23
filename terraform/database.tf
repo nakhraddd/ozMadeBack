@@ -1,6 +1,6 @@
 # Create a Cloud SQL for PostgreSQL instance
 resource "google_sql_database_instance" "db_instance" {
-  name             = "ozmadeback-db-instance"
+  name             = "ozmadeback-db"
   database_version = "POSTGRES_14"
   region           = var.region
 
