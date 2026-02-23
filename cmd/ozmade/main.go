@@ -5,15 +5,16 @@ import (
 	"log"
 	"os"
 
-	"cloud.google.com/go/storage"
-	"github.com/gin-gonic/gin"
-	"google.golang.org/api/option"
 	"ozMadeBack/config"
 	"ozMadeBack/internal/auth"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/routes"
 	"ozMadeBack/internal/services"
+
+	"cloud.google.com/go/storage"
+	"github.com/gin-gonic/gin"
+	"google.golang.org/api/option"
 )
 
 func main() {
@@ -42,5 +43,5 @@ func main() {
 	routes.SetupRoutes(r)
 	routes.SellerRoutes(r, sellerHandler, auth.Client)
 
-	r.Run(":8080")
+	r.Run("0.0.0.0:8080")
 }
