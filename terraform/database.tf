@@ -5,13 +5,20 @@ resource "google_sql_database_instance" "db_instance" {
   region           = var.region
 
   settings {
-    tier = "db-g1-small" # A small, cost-effective tier for development
+    tier = "db-g1-small"
     ip_configuration {
       ipv4_enabled = true
-      # Allow public access for simplicity, but restrict with authorized_networks
-      # For production, prefer using a private IP and a VPC connector.
+
+      authorized_networks {
+        name  = "vm-app-server"
+        value = google_compute_address.static_ip.address
+      }
     }
   }
+}
+
+output "db_ip" {
+  value = google_sql_database_instance.db_instance.public_ip_address
 }
 
 # Create the database within the instance

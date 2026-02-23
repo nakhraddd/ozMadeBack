@@ -56,9 +56,9 @@ jobs:
       - name: Store Terraform Outputs
         id: terraform-output
         run: |
-          echo "instance_ip=$(terraform -chdir=terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
-          echo "db_connection_name=$(terraform -chdir=terraform output -raw db_connection_name)" >> $GITHUB_OUTPUT
-          echo "gcs_bucket_name=$(terraform -chdir=terraform output -raw gcs_bucket_name)" >> $GITHUB_OUTPUT
+            echo "instance_ip=$(terraform -chdir=terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
+            echo "db_ip=$(terraform -chdir=terraform output -raw db_ip)" >> $GITHUB_OUTPUT
+            echo "gcs_bucket_name=$(terraform -chdir=terraform output -raw gcs_bucket_name)" >> $GITHUB_OUTPUT
 
   configure:
     name: Configure Server with Ansible
@@ -122,17 +122,11 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
-          # Database connection string for Cloud SQL
-          echo "DATABASE_URL=host=/cloudsql/${{ needs.provision.outputs.db_connection_name }} user=ozmade_user password=${{ secrets.DB_PASSWORD }} dbname=ozmadeback_db sslmode=disable" >> .env
-          
-          # Write Firebase credentials to a JSON file
-          echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > serviceAccountKey.json
-          
-          # Point the env var to the file path on the server
-          echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/serviceAccountKey.json" >> .env
-          
-          echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
+            echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
+            echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db?sslmode=disable" >> .env
+            echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > serviceAccountKey.json
+            echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/serviceAccountKey.json" >> .env
+            echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
 
       - name: Copy deployment files to server
         uses: appleboy/scp-action@v0.1.7
