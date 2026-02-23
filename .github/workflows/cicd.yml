@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       instance_ip: ${{ steps.terraform-output.outputs.instance_ip }}
+      db_ip: ${{ steps.terraform-output.outputs.db_ip }}
       db_connection_name: ${{ steps.terraform-output.outputs.db_connection_name }}
       gcs_bucket_name: ${{ steps.terraform-output.outputs.gcs_bucket_name }}
     steps:
