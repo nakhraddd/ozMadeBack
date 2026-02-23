@@ -124,8 +124,8 @@ jobs:
         run: |
             echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
             echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db?sslmode=disable" >> .env
-            echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > serviceAccountKey.json
-            echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/serviceAccountKey.json" >> .env
+            echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > firebase_credentials.json
+            echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/firebase_credentials.json" >> .env
             echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
 
       - name: Copy deployment files to server
