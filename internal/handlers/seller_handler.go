@@ -28,6 +28,13 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		return
 	}
 
+	// Check if a seller profile already exists for this user
+	var existingSeller models.Seller
+	if err := database.DB.Where("user_id = ?", userID).First(&existingSeller).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Seller profile already exists for this user"})
+		return
+	}
+
 	if user.IsSeller {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User is already a seller"})
 		return
@@ -38,10 +45,24 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		Status: "pending",
 	}
 
-	if err := database.DB.Create(&seller).Error; err != nil {
+	tx := database.DB.Begin()
+
+	if err := tx.Create(&seller).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register seller"})
 		return
 	}
+
+	if err := tx.Model(&user).Updates(map[string]interface{}{
+		"is_seller": true,
+		"role":      "seller",
+	}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user status"})
+		return
+	}
+
+	tx.Commit()
 
 	c.JSON(http.StatusOK, gin.H{"message": "Seller application submitted"})
 }
