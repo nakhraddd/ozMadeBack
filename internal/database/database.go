@@ -21,6 +21,16 @@ func Connect(dsn string) {
 }
 
 func Migrate() {
-	DB.AutoMigrate(&models.User{}, &models.Seller{}, &models.Product{})
+	DB.AutoMigrate(
+		&models.User{},
+		&models.Seller{},
+		&models.Product{},
+		&models.Chat{},
+		&models.Message{},
+		&models.Comment{},
+		&models.Order{},
+		&models.Favorite{},
+		&models.Report{},
+	)
 	fmt.Println("Database Migrated")
 }
