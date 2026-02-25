@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetProducts(c *gin.Context) {
@@ -22,6 +23,26 @@ func GetProducts(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	query.Limit(limit).Offset(offset).Find(&products)
+
+	// Fetch seller names
+	var sellerIDs []uint
+	for _, p := range products {
+		sellerIDs = append(sellerIDs, p.SellerID)
+	}
+
+	if len(sellerIDs) > 0 {
+		var sellers []models.Seller
+		database.DB.Preload("User").Where("id IN ?", sellerIDs).Find(&sellers)
+
+		sellerMap := make(map[uint]string)
+		for _, s := range sellers {
+			sellerMap[s.ID] = s.User.Email
+		}
+
+		for i := range products {
+			products[i].SellerName = sellerMap[products[i].SellerID]
+		}
+	}
 
 	for i := range products {
 		url, _ := services.GenerateSignedURL(products[i].ImageName)
@@ -41,6 +62,12 @@ func GetProduct(c *gin.Context) {
 
 	url, _ := services.GenerateSignedURL(product.ImageName)
 	product.ImageName = url
+
+	// Fetch seller name
+	var seller models.Seller
+	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err == nil {
+		product.SellerName = seller.User.Email
+	}
 
 	c.JSON(http.StatusOK, product)
 }
@@ -68,11 +95,35 @@ func GetTrendingProducts(c *gin.Context) {
 	}
 
 	var products []models.Product
-	database.DB.Where("id IN ?", ids).Find(&products)
+	if len(ids) > 0 {
+		database.DB.Where("id IN ?", ids).Find(&products)
 
-	for i := range products {
-		url, _ := services.GenerateSignedURL(products[i].ImageName)
-		products[i].ImageName = url
+		// Fetch seller names
+		var sellerIDs []uint
+		for _, p := range products {
+			sellerIDs = append(sellerIDs, p.SellerID)
+		}
+
+		if len(sellerIDs) > 0 {
+			var sellers []models.Seller
+			database.DB.Preload("User").Where("id IN ?", sellerIDs).Find(&sellers)
+
+			sellerMap := make(map[uint]string)
+			for _, s := range sellers {
+				sellerMap[s.ID] = s.User.Email
+			}
+
+			for i := range products {
+				products[i].SellerName = sellerMap[products[i].SellerID]
+			}
+		}
+
+		for i := range products {
+			url, _ := services.GenerateSignedURL(products[i].ImageName)
+			products[i].ImageName = url
+		}
+	} else {
+		products = []models.Product{}
 	}
 
 	c.JSON(http.StatusOK, products)

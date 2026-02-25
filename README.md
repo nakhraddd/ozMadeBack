@@ -237,7 +237,8 @@ Here is a list of available API endpoints for testing with Postman.
                 "AverageRating": 4.5,
                 "ImageName": "https://signed-url-to-image.com/productA.jpg",
                 "CreatedAt": "2023-01-01T12:00:00Z",
-                "Comments": []
+                "Comments": [],
+                "SellerName": "seller@example.com"
             }
         ]
         ```
@@ -265,7 +266,8 @@ Here is a list of available API endpoints for testing with Postman.
             "CreatedAt": "2023-01-01T12:00:00Z",
             "Comments": [
                 {"ID": 1, "UserID": 101, "ProductID": 1, "Rating": 5, "Text": "Great product!"}
-            ]
+            ],
+            "SellerName": "seller@example.com"
         }
         ```
     *   `404 Not Found`: If the product with the given ID does not exist.

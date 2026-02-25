@@ -26,4 +26,5 @@ type Product struct {
 	Categories    []string `gorm:"serializer:json"`
 	CreatedAt     time.Time
 	Comments      []Comment
+	SellerName    string `gorm:"-"`
 }
