@@ -385,6 +385,29 @@ Here is a list of available API endpoints for testing with Postman.
     *   `401 Unauthorized`: If the `Authorization` header is missing or the token is invalid.
     *   `500 Internal Server Error`: If there's an issue fetching orders.
 
+#### `POST /orders`
+*   **Description**: Creates a new order.
+*   **Request Body**:
+    ```json
+    {
+        "product_id": 1,
+        "quantity": 2,
+        "total_cost": 100.00
+    }
+    ```
+*   **Responses**:
+    *   `201 Created`: Returns created order.
+
+#### `POST /orders/:id/cancel`
+*   **Description**: Cancels an order (buyer side).
+*   **Responses**:
+    *   `200 OK`: `{"message": "Order cancelled"}`
+
+#### `POST /orders/:id/received`
+*   **Description**: Marks an order as received by buyer.
+*   **Responses**:
+    *   `200 OK`: `{"message": "Order marked as received"}`
+
 #### `POST /seller/register`
 *   **Description**: Allows an authenticated user to apply to become a seller.
 *   **Request Body**: None
@@ -451,7 +474,15 @@ Here is a list of available API endpoints for testing with Postman.
         "price": 45.99,
         "type": "crafts",
         "address": "123 Craft Lane",
-        "image_url": "https://example.com/new_craft_image.jpg"
+        "image_url": "https://example.com/new_craft_image.jpg",
+        "weight": "4",
+        "height_cm": "78",
+        "width_cm": "48",
+        "depth_cm": "28",
+        "composition": "polypropylene",
+        "youtube_url": "https://youtu.be/...",
+        "categories": ["Gifts"],
+        "images": ["https://...", "https://..."]
     }
     ```
 *   **Responses**:
@@ -482,12 +513,17 @@ Here is a list of available API endpoints for testing with Postman.
 *   **Request Body**:
     ```json
     {
-        "name": "Updated Handmade Craft",
-        "description": "An even more beautifully crafted item.",
-        "price": 49.99,
-        "type": "crafts",
-        "address": "456 Artisan Way",
-        "image_url": "https://example.com/updated_craft_image.jpg"
+        "Title": "Updated Handmade Craft",
+        "Description": "An even more beautifully crafted item.",
+        "Cost": 49.99,
+        "Categories": ["Gifts"],
+        "Images": ["https://...", "https://..."],
+        "Weight": "4",
+        "HeightCm": "78",
+        "WidthCm": "48",
+        "DepthCm": "28",
+        "Composition": "polypropylene",
+        "YouTubeUrl": "https://youtu.be/..."
     }
     ```
     (All fields are required for a PUT, or use PATCH for partial updates)
@@ -616,3 +652,64 @@ Here is a list of available API endpoints for testing with Postman.
     *   `401 Unauthorized`: If the `Authorization` header is missing or the token is invalid.
     *   `403 Forbidden`: If the user is not a registered seller or does not have access to this chat.
     *   `500 Internal Server Error`: If there's an issue fetching messages.
+
+#### `POST /chats/:chat_id/messages`
+*   **Description**: Sends a message in a chat.
+*   **Request Body**:
+    ```json
+    {
+        "content": "Hello!"
+    }
+    ```
+*   **Responses**:
+    *   `201 Created`: Returns created message with `SenderRole`.
+
+#### `GET /seller/delivery`
+*   **Description**: Returns the shipping settings of the current seller.
+*   **Request Body**: None
+*   **Responses**:
+    *   `200 OK`:
+        ```json
+        {
+            "pickup_enabled": true,
+            "pickup_address": "Almaty, ...",
+            "pickup_time": "10:00 - 18:00",
+            "free_delivery_enabled": false,
+            "delivery_center_lat": 43.238949,
+            "delivery_center_lng": 76.889709,
+            "delivery_radius_km": 5,
+            "delivery_center_address": "Almaty, Abay 10",
+            "intercity_enabled": true
+        }
+        ```
+
+#### `PATCH /seller/delivery`
+*   **Description**: Updates the shipping settings of the current seller.
+*   **Request Body**: Same as response of GET.
+*   **Responses**:
+    *   `200 OK`: Returns updated settings.
+
+#### `GET /seller/orders`
+*   **Description**: Retrieves a list of orders for the seller's products.
+*   **Responses**:
+    *   `200 OK`: List of orders.
+
+#### `POST /seller/orders/:id/confirm`
+*   **Description**: Confirms an order.
+*   **Responses**:
+    *   `200 OK`: `{"message": "Order confirmed"}`
+
+#### `POST /seller/orders/:id/cancel`
+*   **Description**: Cancels an order (seller side).
+*   **Responses**:
+    *   `200 OK`: `{"message": "Order cancelled"}`
+
+#### `POST /seller/orders/:id/ready_or_shipped`
+*   **Description**: Marks an order as ready or shipped.
+*   **Responses**:
+    *   `200 OK`: `{"message": "Order marked as ready/shipped"}`
+
+#### `POST /seller/orders/:id/complete`
+*   **Description**: Completes an order.
+*   **Responses**:
+    *   `200 OK`: `{"message": "Order completed"}`
