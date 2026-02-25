@@ -46,6 +46,9 @@ func SetupRoutes(r *gin.Engine) {
 	chatRoutes := r.Group("/chats")
 	chatRoutes.Use(auth.AuthMiddleware())
 	{
+		chatRoutes.POST("", handlers.InitiateChat)
+		chatRoutes.GET("", handlers.GetChats)
 		chatRoutes.POST("/:chat_id/messages", handlers.SendMessage)
+		chatRoutes.GET("/:chat_id/messages", handlers.GetChatMessages)
 	}
 }

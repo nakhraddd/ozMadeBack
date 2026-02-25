@@ -490,6 +490,61 @@ Here is a list of available API endpoints for testing with Postman.
     *   `401 Unauthorized`: If the `Authorization` header is missing or the token is invalid.
     *   `500 Internal Server Error`: If there's an issue fetching orders.
 
+#### `POST /chats`
+*   **Description**: Initiates a new chat session for a product, or returns the existing one.
+*   **Request Body**:
+    ```json
+    {
+        "product_id": 1,
+        "content": "Is this still available?"
+    }
+    ```
+*   **Responses**:
+    *   `200 OK`: Returns the chat object.
+
+#### `GET /chats`
+*   **Description**: Retrieves a list of all chat conversations where the authenticated user is the buyer.
+*   **Request Body**: None
+*   **Responses**:
+    *   `200 OK`:
+        ```json
+        [
+            {
+                "ID": 1,
+                "CreatedAt": "2023-04-01T10:00:00Z",
+                "UpdatedAt": "2023-04-01T10:00:00Z",
+                "DeletedAt": null,
+                "SellerID": 1,
+                "BuyerID": 2,
+                "ProductID": 10,
+                "ProductName": "Seller's Product 1",
+                "ProductImage": "https://signed-url-to-image.com/seller_product1.jpg",
+                "Messages": []
+            }
+        ]
+        ```
+
+#### `GET /chats/:chat_id/messages`
+*   **Description**: Retrieves all messages within a specific chat conversation. The user must be a participant (buyer or seller).
+*   **Path Parameters**:
+    *   `chat_id` (integer, required): The unique identifier of the chat conversation.
+*   **Request Body**: None
+*   **Responses**:
+    *   `200 OK`:
+        ```json
+        [
+            {
+                "ID": 1,
+                "CreatedAt": "2023-04-01T10:01:00Z",
+                "UpdatedAt": "2023-04-01T10:01:00Z",
+                "DeletedAt": null,
+                "ChatID": 1,
+                "SenderID": 2,
+                "Content": "Hello, is this product available?"
+            }
+        ]
+        ```
+
 #### `POST /orders`
 *   **Description**: Creates a new order.
 *   **Request Body**:
