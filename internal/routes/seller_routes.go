@@ -26,5 +26,14 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 
 		sellerGroup.GET("/chats", sellerHandler.GetChats)
 		sellerGroup.GET("/chats/:chat_id/messages", sellerHandler.GetChatMessages)
+
+		sellerGroup.GET("/delivery", sellerHandler.GetDelivery)
+		sellerGroup.PATCH("/delivery", sellerHandler.UpdateDelivery)
+
+		sellerGroup.GET("/orders", sellerHandler.GetSellerOrders)
+		sellerGroup.POST("/orders/:id/confirm", sellerHandler.ConfirmOrder)
+		sellerGroup.POST("/orders/:id/cancel", sellerHandler.CancelOrderSeller)
+		sellerGroup.POST("/orders/:id/ready_or_shipped", sellerHandler.ReadyOrShipped)
+		sellerGroup.POST("/orders/:id/complete", sellerHandler.CompleteOrder)
 	}
 }

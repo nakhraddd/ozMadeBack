@@ -14,8 +14,9 @@ type Chat struct {
 
 type Message struct {
 	gorm.Model
-	ChatID    uint
-	SenderID  uint
-	Content   string
-	CreatedAt time.Time
+	ChatID     uint
+	SenderID   uint
+	SenderRole string // "SELLER" or "BUYER"
+	Content    string
+	CreatedAt  time.Time
 }

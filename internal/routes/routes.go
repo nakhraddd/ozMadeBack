@@ -34,4 +34,18 @@ func SetupRoutes(r *gin.Engine) {
 		userRoutes.GET("/favorites", handlers.GetFavorites)
 		userRoutes.GET("/orders", handlers.GetOrders)
 	}
+
+	orderRoutes := r.Group("/orders")
+	orderRoutes.Use(auth.AuthMiddleware())
+	{
+		orderRoutes.POST("", handlers.CreateOrder)
+		orderRoutes.POST("/:id/cancel", handlers.CancelOrderBuyer)
+		orderRoutes.POST("/:id/received", handlers.BuyerReceived)
+	}
+
+	chatRoutes := r.Group("/chats")
+	chatRoutes.Use(auth.AuthMiddleware())
+	{
+		chatRoutes.POST("/:chat_id/messages", handlers.SendMessage)
+	}
 }

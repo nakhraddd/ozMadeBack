@@ -16,6 +16,14 @@ type Product struct {
 	ViewCount     int64
 	AverageRating float64
 	ImageName     string
+	Images        []string `gorm:"serializer:json"`
+	Weight        string
+	HeightCm      string
+	WidthCm       string
+	DepthCm       string
+	Composition   string
+	YouTubeUrl    string
+	Categories    []string `gorm:"serializer:json"`
 	CreatedAt     time.Time
 	Comments      []Comment
 }
