@@ -66,6 +66,108 @@ The backend is designed to run on a modern cloud infrastructure, leveraging the 
     *   **Firebase Cloud Messaging (FCM)**: For sending push notifications to the Android client.
     *   **WebSockets**: For active, in-app chat sessions.
 
+## Database Schema
+
+The application uses PostgreSQL as the primary database. Below is an overview of the key tables and their relationships.
+
+### Users (`users`)
+Stores user account information.
+*   `id`: Primary Key (uint)
+*   `firebase_uid`: Unique identifier from Firebase Auth (string, unique)
+*   `phone_number`: User's phone number (string)
+*   `email`: User's email address (string)
+*   `address`: User's default shipping address (string)
+*   `role`: User role, either "buyer" or "seller" (string)
+*   `is_seller`: Boolean flag indicating if the user has a seller profile (bool)
+*   `created_at`: Timestamp of account creation
+
+### Sellers (`sellers`)
+Stores seller-specific information. A user can have one seller profile.
+*   `id`: Primary Key (uint)
+*   `user_id`: Foreign Key referencing `users.id` (uint, unique)
+*   `status`: Seller approval status (e.g., "pending", "approved") (string)
+*   `id_card`: URL to the seller's ID card image (string)
+*   `pickup_enabled`: Boolean flag for pickup option
+*   `pickup_address`: Address for pickup
+*   `pickup_time`: Available pickup times
+*   `free_delivery_enabled`: Boolean flag for free delivery
+*   `delivery_center_lat`: Latitude of delivery center
+*   `delivery_center_lng`: Longitude of delivery center
+*   `delivery_radius_km`: Delivery radius in kilometers
+*   `delivery_center_address`: Address of delivery center
+*   `intercity_enabled`: Boolean flag for intercity delivery
+
+### Products (`products`)
+Stores product listings created by sellers.
+*   `id`: Primary Key (uint)
+*   `seller_id`: Foreign Key referencing `sellers.id` (uint)
+*   `title`: Product name (string)
+*   `description`: Product description (string)
+*   `type`: Product category/type (string)
+*   `cost`: Product price (float64)
+*   `address`: Location of the product (string)
+*   `whatsapp_link`: Link to contact seller via WhatsApp (string)
+*   `view_count`: Number of times the product has been viewed (int64)
+*   `average_rating`: Average rating from comments (float64)
+*   `image_name`: URL of the main product image (string)
+*   `images`: JSON array of additional image URLs (json)
+*   `weight`: Product weight (string)
+*   `height_cm`: Product height in cm (string)
+*   `width_cm`: Product width in cm (string)
+*   `depth_cm`: Product depth in cm (string)
+*   `composition`: Product material/composition (string)
+*   `youtube_url`: URL to a YouTube video of the product (string)
+*   `categories`: JSON array of product categories (json)
+*   `created_at`: Timestamp of product creation
+
+### Orders (`orders`)
+Stores order information.
+*   `id`: Primary Key (uint)
+*   `user_id`: Foreign Key referencing `users.id` (Buyer) (uint)
+*   `product_id`: Foreign Key referencing `products.id` (uint)
+*   `quantity`: Quantity of the product ordered (int)
+*   `total_cost`: Total cost of the order (float64)
+*   `status`: Order status (e.g., "pending", "confirmed", "shipped", "completed", "cancelled") (string)
+*   `created_at`: Timestamp of order creation
+
+### Chats (`chats`)
+Stores chat sessions between a buyer and a seller.
+*   `id`: Primary Key (uint)
+*   `seller_id`: Foreign Key referencing `sellers.id` (uint)
+*   `buyer_id`: Foreign Key referencing `users.id` (uint)
+*   `created_at`: Timestamp of chat creation
+
+### Messages (`messages`)
+Stores individual messages within a chat.
+*   `id`: Primary Key (uint)
+*   `chat_id`: Foreign Key referencing `chats.id` (uint)
+*   `sender_id`: Foreign Key referencing `users.id` (uint)
+*   `sender_role`: Role of the sender ("SELLER" or "BUYER") (string)
+*   `content`: Message text (string)
+*   `created_at`: Timestamp of message creation
+
+### Comments (`comments`)
+Stores product reviews and ratings.
+*   `id`: Primary Key (uint)
+*   `product_id`: Foreign Key referencing `products.id` (uint)
+*   `user_id`: Foreign Key referencing `users.id` (uint)
+*   `rating`: Rating given by the user (1-5) (int)
+*   `text`: Comment text (string)
+*   `created_at`: Timestamp of comment creation
+
+### Reports (`reports`)
+Stores reports filed against products.
+*   `id`: Primary Key (uint)
+*   `product_id`: Foreign Key referencing `products.id` (uint)
+*   `user_id`: Foreign Key referencing `users.id` (uint)
+*   `reason`: Reason for the report (string)
+*   `created_at`: Timestamp of report creation
+
+### Favorites (`favorites`)
+Stores user's favorite products (Many-to-Many relationship).
+*   `user_id`: Foreign Key referencing `users.id` (uint)
+*   `product_id`: Foreign Key referencing `products.id` (uint)
+
 ## Key Features
 
 ### Authentication

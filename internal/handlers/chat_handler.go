@@ -27,14 +27,25 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
-	if chat.SellerID != userID && chat.BuyerID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
-		return
+	// Determine sender role
+	senderRole := ""
+
+	// Check if user is the buyer
+	if chat.BuyerID == userID {
+		senderRole = "BUYER"
+	} else {
+		// Check if user is the seller
+		var seller models.Seller
+		if err := database.DB.Where("id = ?", chat.SellerID).First(&seller).Error; err == nil {
+			if seller.UserID == userID {
+				senderRole = "SELLER"
+			}
+		}
 	}
 
-	senderRole := "BUYER"
-	if chat.SellerID == userID {
-		senderRole = "SELLER"
+	if senderRole == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+		return
 	}
 
 	message := models.Message{
