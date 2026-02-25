@@ -280,6 +280,17 @@ func (h *SellerHandler) GetChats(c *gin.Context) {
 		return
 	}
 
+	for i := range chats {
+		if chats[i].ProductID != 0 {
+			var product models.Product
+			if err := database.DB.First(&product, chats[i].ProductID).Error; err == nil {
+				chats[i].ProductName = product.Title
+				url, _ := h.GCSService.GenerateSignedURL(product.ImageName, "GET", 15*time.Minute)
+				chats[i].ProductImage = url
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, chats)
 }
 

@@ -135,6 +135,7 @@ Stores chat sessions between a buyer and a seller.
 *   `id`: Primary Key (uint)
 *   `seller_id`: Foreign Key referencing `sellers.id` (uint)
 *   `buyer_id`: Foreign Key referencing `users.id` (uint)
+*   `product_id`: Foreign Key referencing `products.id` (uint)
 *   `created_at`: Timestamp of chat creation
 
 ### Messages (`messages`)
@@ -715,6 +716,9 @@ Here is a list of available API endpoints for testing with Postman.
                 "DeletedAt": null,
                 "SellerID": 1,
                 "BuyerID": 2,
+                "ProductID": 10,
+                "ProductName": "Seller's Product 1",
+                "ProductImage": "https://signed-url-to-image.com/seller_product1.jpg",
                 "Messages": []
             }
         ]
