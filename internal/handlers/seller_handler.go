@@ -413,9 +413,9 @@ func (h *SellerHandler) CancelOrderSeller(c *gin.Context) {
 
 func (h *SellerHandler) ReadyOrShipped(c *gin.Context) {
 	orderID := c.Param("id")
-	var input struct {
-		// Assuming request body might contain tracking info or just status trigger
-	}
+	//var input struct {
+	//	// Assuming request body might contain tracking info or just status trigger
+	//}
 	// For now just update status
 	if err := database.DB.Model(&models.Order{}).Where("id = ?", orderID).Update("status", "shipped").Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
