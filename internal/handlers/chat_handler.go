@@ -43,7 +43,7 @@ func SendMessage(c *gin.Context) {
 			}
 		}
 	}
-	//to make redeploy
+
 	if senderRole == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
 		return
@@ -126,9 +126,6 @@ func InitiateChat(c *gin.Context) {
 
 	// Populate transient fields for response
 	chat.ProductName = product.Title
-	// Assuming GCS service is available via a global or we need to inject it.
-	// Since this is a function, we can't easily inject without changing signature or using global.
-	// internal/services/storage.go has GenerateSignedURL global helper.
 	url, _ := services.GenerateSignedURL(product.ImageName)
 	chat.ProductImage = url
 
@@ -137,8 +134,22 @@ func InitiateChat(c *gin.Context) {
 
 func GetChats(c *gin.Context) {
 	userID := c.GetUint("userID")
+
+	// Find seller ID if user is a seller
+	var sellerID uint
+	var seller models.Seller
+	if err := database.DB.Where("user_id = ?", userID).First(&seller).Error; err == nil {
+		sellerID = seller.ID
+	}
+
 	var chats []models.Chat
-	if err := database.DB.Where("buyer_id = ?", userID).Find(&chats).Error; err != nil {
+	// Fetch chats where user is buyer OR seller
+	query := database.DB.Where("buyer_id = ?", userID)
+	if sellerID != 0 {
+		query = query.Or("seller_id = ?", sellerID)
+	}
+
+	if err := query.Find(&chats).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch chats"})
 		return
 	}

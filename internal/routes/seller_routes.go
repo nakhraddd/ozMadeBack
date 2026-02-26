@@ -24,9 +24,6 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 		sellerGroup.GET("/profile", sellerHandler.GetProfile)
 		sellerGroup.PATCH("/profile", sellerHandler.UpdateProfile)
 
-		sellerGroup.GET("/chats", sellerHandler.GetChats)
-		sellerGroup.GET("/chats/:chat_id/messages", sellerHandler.GetChatMessages)
-
 		sellerGroup.GET("/delivery", sellerHandler.GetDelivery)
 		sellerGroup.PATCH("/delivery", sellerHandler.UpdateDelivery)
 

@@ -266,45 +266,6 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated"})
 }
 
-func (h *SellerHandler) GetChats(c *gin.Context) {
-	userID := c.GetUint("userID")
-	var seller models.Seller
-	if err := database.DB.Where("user_id = ?", userID).First(&seller).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
-		return
-	}
-
-	var chats []models.Chat
-	if err := database.DB.Where("seller_id = ?", seller.ID).Find(&chats).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch chats"})
-		return
-	}
-
-	for i := range chats {
-		if chats[i].ProductID != 0 {
-			var product models.Product
-			if err := database.DB.First(&product, chats[i].ProductID).Error; err == nil {
-				chats[i].ProductName = product.Title
-				url, _ := h.GCSService.GenerateSignedURL(product.ImageName, "GET", 15*time.Minute)
-				chats[i].ProductImage = url
-			}
-		}
-	}
-
-	c.JSON(http.StatusOK, chats)
-}
-
-func (h *SellerHandler) GetChatMessages(c *gin.Context) {
-	chatID := c.Param("chat_id")
-	var messages []models.Message
-	if err := database.DB.Where("chat_id = ?", chatID).Find(&messages).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
-		return
-	}
-
-	c.JSON(http.StatusOK, messages)
-}
-
 func (h *SellerHandler) GetDelivery(c *gin.Context) {
 	userID := c.GetUint("userID")
 	var seller models.Seller
