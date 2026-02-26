@@ -215,6 +215,29 @@ Here is a list of available API endpoints for testing with Postman.
 
 ### Public Endpoints
 
+#### `GET /categories`
+*   **Description**: Retrieves a list of product categories.
+*   **Request Body**: None
+*   **Responses**:
+    *   `200 OK`:
+        ```json
+        [
+          { "id": "food", "title": "Еда", "icon_url": null },
+          { "id": "art", "title": "Искусство", "icon_url": null }
+        ]
+        ```
+
+#### `GET /ads`
+*   **Description**: Retrieves a list of advertisements/banners.
+*   **Request Body**: None
+*   **Responses**:
+    *   `200 OK`:
+        ```json
+        [
+          { "id": "1", "image_url": "https://...", "title": "Скидки", "deeplink": "ozmade://..." }
+        ]
+        ```
+
 #### `GET /products`
 *   **Description**: Retrieves a list of all products. Supports filtering and pagination.
 *   **Query Parameters**:

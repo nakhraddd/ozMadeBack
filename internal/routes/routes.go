@@ -7,6 +7,10 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine) {
+	// Public routes
+	r.GET("/categories", handlers.GetCategories)
+	r.GET("/ads", handlers.GetAds)
+
 	authRoutes := r.Group("/auth")
 	authRoutes.Use(auth.AuthMiddleware())
 	{
