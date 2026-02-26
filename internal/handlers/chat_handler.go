@@ -43,7 +43,7 @@ func SendMessage(c *gin.Context) {
 			}
 		}
 	}
-
+	//to make redeploy
 	if senderRole == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
 		return
