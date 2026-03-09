@@ -900,5 +900,3 @@ Here is a list of available API endpoints for testing with Postman.
 *   **Responses**:
     *   `200 OK`: `{"message": "Order completed"}`
 
-
-to triger git actions
