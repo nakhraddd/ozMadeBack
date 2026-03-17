@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 func PostComment(c *gin.Context) {
@@ -29,7 +30,7 @@ func PostComment(c *gin.Context) {
 	comment := models.Comment{
 		UserID:    userID.(uint),
 		ProductID: uint(productID),
-		Rating:    input.Rating,
+		Rating:    float64(input.Rating),
 		Text:      input.Text,
 	}
 	database.DB.Create(&comment)
@@ -70,12 +71,15 @@ func updateAverageRating(productID uint) {
 	var comments []models.Comment
 	database.DB.Where("product_id = ?", productID).Find(&comments)
 
-	var totalRating int
+	var totalRating float64
 	for _, c := range comments {
 		totalRating += c.Rating
 	}
 
-	avgRating := float64(totalRating) / float64(len(comments))
+	avgRating := 0.0
+	if len(comments) > 0 {
+		avgRating = totalRating / float64(len(comments))
+	}
 
 	var product models.Product
 	database.DB.First(&product, productID)

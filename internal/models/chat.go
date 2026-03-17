@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -8,19 +9,23 @@ import (
 
 type Chat struct {
 	gorm.Model
-	SellerID     uint
-	BuyerID      uint
-	ProductID    uint   // New field to link chat to a product
-	ProductName  string `gorm:"-"` // Populated at runtime
-	ProductImage string `gorm:"-"` // Populated at runtime
+	SellerID     uint   `gorm:"uniqueIndex:idx_chat_unique"`
+	BuyerID      uint   `gorm:"uniqueIndex:idx_chat_unique"`
+	ProductID    uint   `gorm:"uniqueIndex:idx_chat_unique"`
+	ProductName  string `gorm:"-"`
+	ProductImage string `gorm:"-"`
 	Messages     []Message
+}
+
+func (c Chat) ChatIDString() string {
+	return fmt.Sprintf("%d_%d_%d", c.BuyerID, c.SellerID, c.ProductID)
 }
 
 type Message struct {
 	gorm.Model
 	ChatID     uint
 	SenderID   uint
-	SenderRole string // "SELLER" or "BUYER"
+	SenderRole string
 	Content    string
 	CreatedAt  time.Time
 }
