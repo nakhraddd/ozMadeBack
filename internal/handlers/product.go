@@ -10,6 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type ProductResponse struct {
+	models.Product
+	Delivery gin.H `json:"delivery"`
+	Seller   gin.H `json:"seller"`
+}
+
 func GetProducts(c *gin.Context) {
 	var products []models.Product
 	query := database.DB.Model(&models.Product{})
@@ -24,32 +30,80 @@ func GetProducts(c *gin.Context) {
 
 	query.Limit(limit).Offset(offset).Find(&products)
 
-	// Fetch seller names
+	// Fetch sellers
 	var sellerIDs []uint
 	for _, p := range products {
 		sellerIDs = append(sellerIDs, p.SellerID)
 	}
 
+	sellerMap := make(map[uint]models.Seller)
 	if len(sellerIDs) > 0 {
 		var sellers []models.Seller
 		database.DB.Preload("User").Where("id IN ?", sellerIDs).Find(&sellers)
-
-		sellerMap := make(map[uint]string)
 		for _, s := range sellers {
-			sellerMap[s.ID] = s.User.Email
-		}
-
-		for i := range products {
-			products[i].SellerName = sellerMap[products[i].SellerID]
+			sellerMap[s.ID] = s
 		}
 	}
 
+	var response []ProductResponse
 	for i := range products {
+		// Generate signed URL for image
 		url, _ := services.GenerateSignedURL(products[i].ImageName)
 		products[i].ImageName = url
+
+		seller, exists := sellerMap[products[i].SellerID]
+		delivery := gin.H{}
+		sellerInfo := gin.H{}
+
+		if exists {
+			// Populate delivery info
+			delivery = gin.H{
+				"pickupEnabled":       seller.PickupEnabled,
+				"pickupTime":          seller.PickupTime,
+				"pickupAddress":       seller.PickupAddress,
+				"freeDeliveryEnabled": seller.FreeDeliveryEnabled,
+				"freeDeliveryText":    "Citywide", // Hardcoded as per example, or could be dynamic
+				"intercityEnabled":    seller.IntercityEnabled,
+				"deliveryCenterLat":   seller.DeliveryCenterLat,
+				"deliveryCenterLng":   seller.DeliveryCenterLng,
+				"deliveryRadiusKm":    seller.DeliveryRadiusKm,
+			}
+
+			// Populate seller info
+			sellerInfo = gin.H{
+				"id":      seller.ID,
+				"name":    seller.User.Email, // Using email as name for now, or add Name field to User/Seller
+				"address": "Almaty",          // Placeholder or needs to be added to Seller model if distinct
+			}
+			products[i].SellerName = seller.User.Email
+		} else {
+			// Default values if seller not found (shouldn't happen ideally)
+			delivery = gin.H{
+				"pickupEnabled":       false,
+				"pickupTime":          nil,
+				"pickupAddress":       nil,
+				"freeDeliveryEnabled": false,
+				"freeDeliveryText":    nil,
+				"intercityEnabled":    false,
+				"deliveryCenterLat":   nil,
+				"deliveryCenterLng":   nil,
+				"deliveryRadiusKm":    nil,
+			}
+			sellerInfo = gin.H{
+				"id":      0,
+				"name":    "Unknown",
+				"address": "Unknown",
+			}
+		}
+
+		response = append(response, ProductResponse{
+			Product:  products[i],
+			Delivery: delivery,
+			Seller:   sellerInfo,
+		})
 	}
 
-	c.JSON(http.StatusOK, products)
+	c.JSON(http.StatusOK, response)
 }
 
 func GetProduct(c *gin.Context) {
@@ -63,13 +117,58 @@ func GetProduct(c *gin.Context) {
 	url, _ := services.GenerateSignedURL(product.ImageName)
 	product.ImageName = url
 
-	// Fetch seller name
+	// Fetch seller
 	var seller models.Seller
+	delivery := gin.H{}
+	sellerInfo := gin.H{}
+
 	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err == nil {
 		product.SellerName = seller.User.Email
+
+		delivery = gin.H{
+			"pickupEnabled":       seller.PickupEnabled,
+			"pickupTime":          seller.PickupTime,
+			"pickupAddress":       seller.PickupAddress,
+			"freeDeliveryEnabled": seller.FreeDeliveryEnabled,
+			"freeDeliveryText":    "Citywide",
+			"intercityEnabled":    seller.IntercityEnabled,
+			"deliveryCenterLat":   seller.DeliveryCenterLat,
+			"deliveryCenterLng":   seller.DeliveryCenterLng,
+			"deliveryRadiusKm":    seller.DeliveryRadiusKm,
+		}
+
+		sellerInfo = gin.H{
+			"id":      seller.ID,
+			"name":    seller.User.Email,
+			"address": "Almaty",
+		}
+	} else {
+		// Default empty delivery/seller if not found
+		delivery = gin.H{
+			"pickupEnabled":       false,
+			"pickupTime":          nil,
+			"pickupAddress":       nil,
+			"freeDeliveryEnabled": false,
+			"freeDeliveryText":    nil,
+			"intercityEnabled":    false,
+			"deliveryCenterLat":   nil,
+			"deliveryCenterLng":   nil,
+			"deliveryRadiusKm":    nil,
+		}
+		sellerInfo = gin.H{
+			"id":      0,
+			"name":    "Unknown",
+			"address": "Unknown",
+		}
 	}
 
-	c.JSON(http.StatusOK, product)
+	response := ProductResponse{
+		Product:  product,
+		Delivery: delivery,
+		Seller:   sellerInfo,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func ViewProduct(c *gin.Context) {
@@ -95,36 +194,83 @@ func GetTrendingProducts(c *gin.Context) {
 	}
 
 	var products []models.Product
+	var response []ProductResponse
+
 	if len(ids) > 0 {
 		database.DB.Where("id IN ?", ids).Find(&products)
 
-		// Fetch seller names
+		// Fetch sellers
 		var sellerIDs []uint
 		for _, p := range products {
 			sellerIDs = append(sellerIDs, p.SellerID)
 		}
 
+		sellerMap := make(map[uint]models.Seller)
 		if len(sellerIDs) > 0 {
 			var sellers []models.Seller
 			database.DB.Preload("User").Where("id IN ?", sellerIDs).Find(&sellers)
-
-			sellerMap := make(map[uint]string)
 			for _, s := range sellers {
-				sellerMap[s.ID] = s.User.Email
-			}
-
-			for i := range products {
-				products[i].SellerName = sellerMap[products[i].SellerID]
+				sellerMap[s.ID] = s
 			}
 		}
 
 		for i := range products {
 			url, _ := services.GenerateSignedURL(products[i].ImageName)
 			products[i].ImageName = url
+
+			seller, exists := sellerMap[products[i].SellerID]
+			delivery := gin.H{}
+			sellerInfo := gin.H{}
+
+			if exists {
+				productSellerName := seller.User.Email // Keeping existing logic
+				products[i].SellerName = productSellerName
+
+				delivery = gin.H{
+					"pickupEnabled":       seller.PickupEnabled,
+					"pickupTime":          seller.PickupTime,
+					"pickupAddress":       seller.PickupAddress,
+					"freeDeliveryEnabled": seller.FreeDeliveryEnabled,
+					"freeDeliveryText":    "Citywide",
+					"intercityEnabled":    seller.IntercityEnabled,
+					"deliveryCenterLat":   seller.DeliveryCenterLat,
+					"deliveryCenterLng":   seller.DeliveryCenterLng,
+					"deliveryRadiusKm":    seller.DeliveryRadiusKm,
+				}
+
+				sellerInfo = gin.H{
+					"id":      seller.ID,
+					"name":    seller.User.Email,
+					"address": "Almaty",
+				}
+			} else {
+				delivery = gin.H{
+					"pickupEnabled":       false,
+					"pickupTime":          nil,
+					"pickupAddress":       nil,
+					"freeDeliveryEnabled": false,
+					"freeDeliveryText":    nil,
+					"intercityEnabled":    false,
+					"deliveryCenterLat":   nil,
+					"deliveryCenterLng":   nil,
+					"deliveryRadiusKm":    nil,
+				}
+				sellerInfo = gin.H{
+					"id":      0,
+					"name":    "Unknown",
+					"address": "Unknown",
+				}
+			}
+
+			response = append(response, ProductResponse{
+				Product:  products[i],
+				Delivery: delivery,
+				Seller:   sellerInfo,
+			})
 		}
 	} else {
-		products = []models.Product{}
+		response = []ProductResponse{}
 	}
 
-	c.JSON(http.StatusOK, products)
+	c.JSON(http.StatusOK, response)
 }
