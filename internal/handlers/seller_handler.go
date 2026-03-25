@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,6 +11,21 @@ import (
 	"ozMadeBack/internal/services"
 
 	"github.com/gin-gonic/gin"
+)
+
+// Constants for Order Statuses and Delivery Types - Need to match order_handler.go
+const (
+	StatusPendingSeller     = "PENDING_SELLER"
+	StatusConfirmed         = "CONFIRMED"
+	StatusReadyOrShipped    = "READY_OR_SHIPPED"
+	StatusCompleted         = "COMPLETED"
+	StatusCancelledByBuyer  = "CANCELLED_BY_BUYER"
+	StatusCancelledBySeller = "CANCELLED_BY_SELLER"
+	StatusExpired           = "EXPIRED"
+
+	DeliveryTypePickup     = "PICKUP"
+	DeliveryTypeMyDelivery = "MY_DELIVERY"
+	DeliveryTypeIntercity  = "INTERCITY"
 )
 
 type SellerHandler struct {
@@ -358,10 +374,6 @@ func (h *SellerHandler) UpdateDelivery(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "delivery_radius_km must be > 0 when free_delivery_enabled is true"})
 			return
 		}
-		// delivery_center_address is preferably required, but let's enforce it if "preferably" means "should" in this context.
-		// If strict enforcement isn't needed, this check can be removed.
-		// Based on "delivery_center_address is preferably required", usually means we should warn or require it.
-		// Let's require it to be safe and consistent with "required" terminology elsewhere.
 		if tempSeller.DeliveryCenterAddress == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "delivery_center_address is required when free_delivery_enabled is true"})
 			return
@@ -444,7 +456,7 @@ func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
 
 	var orders []models.Order
 	if len(productIDs) > 0 {
-		if err := database.DB.Where("product_id IN ?", productIDs).Find(&orders).Error; err != nil {
+		if err := database.DB.Where("product_id IN ?", productIDs).Order("created_at desc").Find(&orders).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch orders"})
 			return
 		}
@@ -452,23 +464,69 @@ func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
 		orders = []models.Order{}
 	}
 
+	// Map to DTO (Use similar logic to Buyer handler, but maybe less strict on hiding sensitive seller info if any)
+	// For simplicity, reusing a similar structure or just raw for now, but ideally strict DTO
 	c.JSON(http.StatusOK, orders)
 }
 
 func (h *SellerHandler) ConfirmOrder(c *gin.Context) {
 	orderID := c.Param("id")
-	// TODO: Verify seller owns this order
-	if err := database.DB.Model(&models.Order{}).Where("id = ?", orderID).Update("status", "confirmed").Error; err != nil {
+	userID := c.GetUint("userID")
+
+	var order models.Order
+	if err := database.DB.First(&order, orderID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	if !isSellerOrder(userID, order.ProductID) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if order.Status != StatusPendingSeller {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be PENDING_SELLER to confirm"})
+		return
+	}
+
+	updates := map[string]interface{}{
+		"status": StatusConfirmed,
+	}
+
+	// Generate confirm code if needed (PICKUP/MY_DELIVERY) and not already set?
+	// Spec says: "Seller confirms -> Status: CONFIRMED. Here the backend can generate a confirm_code"
+	if order.ConfirmCode == "" && (order.DeliveryType == DeliveryTypePickup || order.DeliveryType == DeliveryTypeMyDelivery) {
+		updates["confirm_code"] = strconv.Itoa(1000 + rand.Intn(9000))
+	}
+
+	if err := database.DB.Model(&order).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to confirm order"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Order confirmed"})
+	c.JSON(http.StatusOK, gin.H{"message": "Order confirmed", "status": StatusConfirmed})
 }
 
 func (h *SellerHandler) CancelOrderSeller(c *gin.Context) {
 	orderID := c.Param("id")
-	// TODO: Verify seller owns this order
-	if err := database.DB.Model(&models.Order{}).Where("id = ?", orderID).Update("status", "cancelled").Error; err != nil {
+	userID := c.GetUint("userID")
+
+	var order models.Order
+	if err := database.DB.First(&order, orderID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	if !isSellerOrder(userID, order.ProductID) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if order.Status != StatusPendingSeller && order.Status != StatusConfirmed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot cancel order in current status"})
+		return
+	}
+
+	if err := database.DB.Model(&order).Update("status", StatusCancelledBySeller).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel order"})
 		return
 	}
@@ -477,11 +535,25 @@ func (h *SellerHandler) CancelOrderSeller(c *gin.Context) {
 
 func (h *SellerHandler) ReadyOrShipped(c *gin.Context) {
 	orderID := c.Param("id")
-	//var input struct {
-	//	// Assuming request body might contain tracking info or just status trigger
-	//}
-	// For now just update status
-	if err := database.DB.Model(&models.Order{}).Where("id = ?", orderID).Update("status", "shipped").Error; err != nil {
+	userID := c.GetUint("userID")
+
+	var order models.Order
+	if err := database.DB.First(&order, orderID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	if !isSellerOrder(userID, order.ProductID) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if order.Status != StatusConfirmed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be CONFIRMED to mark as ready/shipped"})
+		return
+	}
+
+	if err := database.DB.Model(&order).Update("status", StatusReadyOrShipped).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
 	}
@@ -490,9 +562,60 @@ func (h *SellerHandler) ReadyOrShipped(c *gin.Context) {
 
 func (h *SellerHandler) CompleteOrder(c *gin.Context) {
 	orderID := c.Param("id")
-	if err := database.DB.Model(&models.Order{}).Where("id = ?", orderID).Update("status", "completed").Error; err != nil {
+	userID := c.GetUint("userID")
+
+	var input struct {
+		Code string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var order models.Order
+	if err := database.DB.First(&order, orderID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	if !isSellerOrder(userID, order.ProductID) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if order.DeliveryType == DeliveryTypeIntercity {
+		// Intercity completion is via buyer "Received" action generally, but spec says:
+		// "B. For PICKUP and MY_DELIVERY: Seller completes... Request: { "code": "1234" }"
+		// Assuming Intercity doesn't use this endpoint with code, or if it does, logic differs.
+		// Spec: "A. For INTERCITY: Buyer clicks "Received": READY_OR_SHIPPED -> COMPLETED"
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Intercity orders are completed by buyer confirmation"})
+		return
+	}
+
+	if order.Status != StatusReadyOrShipped {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be READY_OR_SHIPPED to complete"})
+		return
+	}
+
+	if order.ConfirmCode != input.Code {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid confirmation code"})
+		return
+	}
+
+	if err := database.DB.Model(&order).Update("status", StatusCompleted).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete order"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Order completed"})
+}
+
+// Helper to check ownership
+func isSellerOrder(userID uint, productID uint) bool {
+	var seller models.Seller
+	if err := database.DB.Where("user_id = ?", userID).First(&seller).Error; err != nil {
+		return false
+	}
+	var count int64
+	database.DB.Model(&models.Product{}).Where("id = ? AND seller_id = ?", productID, seller.ID).Count(&count)
+	return count > 0
 }

@@ -36,12 +36,13 @@ func SetupRoutes(r *gin.Engine) {
 		userRoutes.PATCH("", handlers.UpdateProfile)
 		userRoutes.POST("/favorites/:id", handlers.ToggleFavorite)
 		userRoutes.GET("/favorites", handlers.GetFavorites)
-		userRoutes.GET("/orders", handlers.GetOrders)
+		userRoutes.GET("/orders", handlers.GetBuyerOrders)
 	}
 
 	orderRoutes := r.Group("/orders")
 	orderRoutes.Use(auth.AuthMiddleware())
 	{
+		orderRoutes.GET("", handlers.GetBuyerOrders)
 		orderRoutes.POST("", handlers.CreateOrder)
 		orderRoutes.POST("/:id/cancel", handlers.CancelOrderBuyer)
 		orderRoutes.POST("/:id/received", handlers.BuyerReceived)

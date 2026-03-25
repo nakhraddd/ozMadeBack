@@ -10,7 +10,7 @@ import (
 )
 
 func GetProfile(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID := c.GetUint("userID")
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -20,7 +20,7 @@ func GetProfile(c *gin.Context) {
 }
 
 func UpdateProfile(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID := c.GetUint("userID")
 	var input struct {
 		Email   string `json:"email"`
 		Address string `json:"address"`
@@ -39,16 +39,17 @@ func UpdateProfile(c *gin.Context) {
 	if input.Email != "" {
 		user.Email = input.Email
 	}
-	if input.Address != "" {
-		user.Address = input.Address
-	}
+	// Removed invalid field reference
+	// if input.Address != "" {
+	// 	user.Address = input.Address
+	// }
 
 	database.DB.Save(&user)
 	c.JSON(http.StatusOK, user)
 }
 
 func ToggleFavorite(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID := c.GetUint("userID")
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
@@ -58,7 +59,7 @@ func ToggleFavorite(c *gin.Context) {
 
 	var favorite models.Favorite
 	if err := database.DB.Where("user_id = ? AND product_id = ?", userID, productID).First(&favorite).Error; err != nil {
-		newFavorite := models.Favorite{UserID: userID.(uint), ProductID: uint(productID)}
+		newFavorite := models.Favorite{UserID: userID, ProductID: uint(productID)}
 		database.DB.Create(&newFavorite)
 		c.JSON(http.StatusOK, gin.H{"status": "added"})
 	} else {
@@ -68,7 +69,7 @@ func ToggleFavorite(c *gin.Context) {
 }
 
 func GetFavorites(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID := c.GetUint("userID")
 	var favorites []models.Favorite
 	database.DB.Where("user_id = ?", userID).Find(&favorites)
 
@@ -86,11 +87,4 @@ func GetFavorites(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, products)
-}
-
-func GetOrders(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	var orders []models.Order
-	database.DB.Where("user_id = ?", userID).Find(&orders)
-	c.JSON(http.StatusOK, orders)
 }
