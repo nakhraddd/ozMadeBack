@@ -12,21 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Constants for Order Statuses and Delivery Types
-const (
-	StatusPendingSeller     = "PENDING_SELLER"
-	StatusConfirmed         = "CONFIRMED"
-	StatusReadyOrShipped    = "READY_OR_SHIPPED"
-	StatusCompleted         = "COMPLETED"
-	StatusCancelledByBuyer  = "CANCELLED_BY_BUYER"
-	StatusCancelledBySeller = "CANCELLED_BY_SELLER"
-	StatusExpired           = "EXPIRED"
-
-	DeliveryTypePickup     = "PICKUP"
-	DeliveryTypeMyDelivery = "MY_DELIVERY"
-	DeliveryTypeIntercity  = "INTERCITY"
-)
-
 type OrderDto struct {
 	ID                  uint      `json:"ID"`
 	Status              string    `json:"Status"`
@@ -89,15 +74,15 @@ func CreateOrder(c *gin.Context) {
 	// 7. Verify delivery type
 	validDelivery := false
 	switch input.DeliveryType {
-	case DeliveryTypePickup:
+	case models.DeliveryTypePickup:
 		if seller.PickupEnabled {
 			validDelivery = true
 		}
-	case DeliveryTypeMyDelivery: // Maps to FreeDeliveryEnabled based on context, or needs explicit mapping. Assuming FreeDeliveryEnabled covers local delivery by seller.
+	case models.DeliveryTypeMyDelivery: // Maps to FreeDeliveryEnabled based on context, or needs explicit mapping. Assuming FreeDeliveryEnabled covers local delivery by seller.
 		if seller.FreeDeliveryEnabled {
 			validDelivery = true
 		}
-	case DeliveryTypeIntercity:
+	case models.DeliveryTypeIntercity:
 		if seller.IntercityEnabled {
 			validDelivery = true
 			if input.ShippingAddressText == nil || *input.ShippingAddressText == "" {
@@ -121,7 +106,7 @@ func CreateOrder(c *gin.Context) {
 	// 10. Create order
 	// Generate confirm code for Pickup/MyDelivery
 	confirmCode := ""
-	if input.DeliveryType == DeliveryTypePickup || input.DeliveryType == DeliveryTypeMyDelivery {
+	if input.DeliveryType == models.DeliveryTypePickup || input.DeliveryType == models.DeliveryTypeMyDelivery {
 		confirmCode = strconv.Itoa(1000 + rand.Intn(9000)) // Simple 4 digit code
 	}
 
@@ -130,7 +115,7 @@ func CreateOrder(c *gin.Context) {
 		ProductID:           product.ID,
 		Quantity:            input.Quantity,
 		TotalCost:           totalCost,
-		Status:              StatusPendingSeller,
+		Status:              models.StatusPendingSeller,
 		CreatedAt:           time.Now(),
 		DeliveryType:        input.DeliveryType,
 		ShippingAddressText: input.ShippingAddressText,
@@ -182,12 +167,12 @@ func CancelOrderBuyer(c *gin.Context) {
 		return
 	}
 
-	if order.Status != StatusPendingSeller {
+	if order.Status != models.StatusPendingSeller {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order cannot be cancelled in current status"})
 		return
 	}
 
-	if err := database.DB.Model(&order).Update("status", StatusCancelledByBuyer).Error; err != nil {
+	if err := database.DB.Model(&order).Update("status", models.StatusCancelledByBuyer).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel order"})
 		return
 	}
@@ -205,17 +190,17 @@ func BuyerReceived(c *gin.Context) {
 		return
 	}
 
-	if order.DeliveryType != DeliveryTypeIntercity {
+	if order.DeliveryType != models.DeliveryTypeIntercity {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Received action only applicable for INTERCITY orders"})
 		return
 	}
 
-	if order.Status != StatusReadyOrShipped {
+	if order.Status != models.StatusReadyOrShipped {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order is not in shipped state"})
 		return
 	}
 
-	if err := database.DB.Model(&order).Update("status", StatusCompleted).Error; err != nil {
+	if err := database.DB.Model(&order).Update("status", models.StatusCompleted).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
 	}
@@ -247,15 +232,15 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 	// Conditionally expose confirm code to buyer if status is appropriate, usually buyer sees it to give to seller?
 	// Spec says: "Seller completes the order via POST /seller/orders/{id}/complete. Request: { "code": "1234" }"
 	// This implies Buyer has the code.
-	if order.Status == StatusConfirmed || order.Status == StatusReadyOrShipped {
+	if order.Status == models.StatusConfirmed || order.Status == models.StatusReadyOrShipped {
 		dto.ConfirmCode = &order.ConfirmCode
 	}
 
 	// Fill delivery details based on type
-	if order.DeliveryType == DeliveryTypePickup {
+	if order.DeliveryType == models.DeliveryTypePickup {
 		dto.PickupAddress = &seller.PickupAddress
 		dto.PickupTime = &seller.PickupTime
-	} else if order.DeliveryType == DeliveryTypeMyDelivery {
+	} else if order.DeliveryType == models.DeliveryTypeMyDelivery {
 		dto.ZoneCenterLat = &seller.DeliveryCenterLat
 		dto.ZoneCenterLng = &seller.DeliveryCenterLng
 		dto.ZoneRadiusKm = &seller.DeliveryRadiusKm

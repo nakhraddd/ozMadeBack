@@ -13,21 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Constants for Order Statuses and Delivery Types - Need to match order_handler.go
-const (
-	StatusPendingSeller     = "PENDING_SELLER"
-	StatusConfirmed         = "CONFIRMED"
-	StatusReadyOrShipped    = "READY_OR_SHIPPED"
-	StatusCompleted         = "COMPLETED"
-	StatusCancelledByBuyer  = "CANCELLED_BY_BUYER"
-	StatusCancelledBySeller = "CANCELLED_BY_SELLER"
-	StatusExpired           = "EXPIRED"
-
-	DeliveryTypePickup     = "PICKUP"
-	DeliveryTypeMyDelivery = "MY_DELIVERY"
-	DeliveryTypeIntercity  = "INTERCITY"
-)
-
 type SellerHandler struct {
 	GCSService *services.GCSService
 }
@@ -464,17 +449,14 @@ func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
 		orders = []models.Order{}
 	}
 
-	// Map to DTO (Use similar logic to Buyer handler, but maybe less strict on hiding sensitive seller info if any)
-	// For simplicity, reusing a similar structure or just raw for now, but ideally strict DTO
+	// Map to DTO
 	var dtos []OrderDto
 	for _, order := range orders {
-		// Optimization: Could preload or batch fetch products/sellers if performance needed
 		var product models.Product
-		var seller models.Seller // Re-fetching seller to be safe with mapOrderToDto, or just reuse `seller`
+		var seller models.Seller
 
 		database.DB.First(&product, order.ProductID)
-		// seller is already fetched above, but mapOrderToDto takes it.
-		// However, mapOrderToDto might want the seller associated with the product (which is this seller).
+		// seller is already fetched above
 
 		dtos = append(dtos, mapOrderToDto(order, product, seller))
 	}
@@ -497,18 +479,17 @@ func (h *SellerHandler) ConfirmOrder(c *gin.Context) {
 		return
 	}
 
-	if order.Status != StatusPendingSeller {
+	if order.Status != models.StatusPendingSeller {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be PENDING_SELLER to confirm"})
 		return
 	}
 
 	updates := map[string]interface{}{
-		"status": StatusConfirmed,
+		"status": models.StatusConfirmed,
 	}
 
 	// Generate confirm code if needed (PICKUP/MY_DELIVERY) and not already set?
-	// Spec says: "Seller confirms -> Status: CONFIRMED. Here the backend can generate a confirm_code"
-	if order.ConfirmCode == "" && (order.DeliveryType == DeliveryTypePickup || order.DeliveryType == DeliveryTypeMyDelivery) {
+	if order.ConfirmCode == "" && (order.DeliveryType == models.DeliveryTypePickup || order.DeliveryType == models.DeliveryTypeMyDelivery) {
 		updates["confirm_code"] = strconv.Itoa(1000 + rand.Intn(9000))
 	}
 
@@ -516,7 +497,7 @@ func (h *SellerHandler) ConfirmOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to confirm order"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Order confirmed", "status": StatusConfirmed})
+	c.JSON(http.StatusOK, gin.H{"message": "Order confirmed", "status": models.StatusConfirmed})
 }
 
 func (h *SellerHandler) CancelOrderSeller(c *gin.Context) {
@@ -534,12 +515,12 @@ func (h *SellerHandler) CancelOrderSeller(c *gin.Context) {
 		return
 	}
 
-	if order.Status != StatusPendingSeller && order.Status != StatusConfirmed {
+	if order.Status != models.StatusPendingSeller && order.Status != models.StatusConfirmed {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot cancel order in current status"})
 		return
 	}
 
-	if err := database.DB.Model(&order).Update("status", StatusCancelledBySeller).Error; err != nil {
+	if err := database.DB.Model(&order).Update("status", models.StatusCancelledBySeller).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel order"})
 		return
 	}
@@ -561,12 +542,12 @@ func (h *SellerHandler) ReadyOrShipped(c *gin.Context) {
 		return
 	}
 
-	if order.Status != StatusConfirmed {
+	if order.Status != models.StatusConfirmed {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be CONFIRMED to mark as ready/shipped"})
 		return
 	}
 
-	if err := database.DB.Model(&order).Update("status", StatusReadyOrShipped).Error; err != nil {
+	if err := database.DB.Model(&order).Update("status", models.StatusReadyOrShipped).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
 	}
@@ -596,16 +577,12 @@ func (h *SellerHandler) CompleteOrder(c *gin.Context) {
 		return
 	}
 
-	if order.DeliveryType == DeliveryTypeIntercity {
-		// Intercity completion is via buyer "Received" action generally, but spec says:
-		// "B. For PICKUP and MY_DELIVERY: Seller completes... Request: { "code": "1234" }"
-		// Assuming Intercity doesn't use this endpoint with code, or if it does, logic differs.
-		// Spec: "A. For INTERCITY: Buyer clicks "Received": READY_OR_SHIPPED -> COMPLETED"
+	if order.DeliveryType == models.DeliveryTypeIntercity {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Intercity orders are completed by buyer confirmation"})
 		return
 	}
 
-	if order.Status != StatusReadyOrShipped {
+	if order.Status != models.StatusReadyOrShipped {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be READY_OR_SHIPPED to complete"})
 		return
 	}
@@ -615,7 +592,7 @@ func (h *SellerHandler) CompleteOrder(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Model(&order).Update("status", StatusCompleted).Error; err != nil {
+	if err := database.DB.Model(&order).Update("status", models.StatusCompleted).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete order"})
 		return
 	}
@@ -632,52 +609,3 @@ func isSellerOrder(userID uint, productID uint) bool {
 	database.DB.Model(&models.Product{}).Where("id = ? AND seller_id = ?", productID, seller.ID).Count(&count)
 	return count > 0
 }
-
-// Needed to map DTOs inside SellerHandler as well
-func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) OrderDto {
-	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
-
-	dto := OrderDto{
-		ID:                  order.ID,
-		Status:              order.Status,
-		CreatedAt:           order.CreatedAt,
-		ProductID:           product.ID,
-		ProductTitle:        product.Title,
-		ProductImageUrl:     imageUrl,
-		Price:               product.Cost,
-		Quantity:            order.Quantity,
-		TotalCost:           order.TotalCost,
-		SellerID:            seller.ID,
-		SellerName:          seller.User.Email, // Or seller name field
-		DeliveryType:        order.DeliveryType,
-		ShippingAddressText: order.ShippingAddressText,
-		ShippingComment:     order.ShippingComment,
-		// ConfirmCode:         &order.ConfirmCode, // Only expose if needed or logic dictates
-	}
-
-	// Conditionally expose confirm code to buyer if status is appropriate, usually buyer sees it to give to seller?
-	// Spec says: "Seller completes the order via POST /seller/orders/{id}/complete. Request: { "code": "1234" }"
-	// This implies Buyer has the code.
-	// For Seller view (which calls this same function now), they might need to see it too?
-	// Or maybe seller only sees it when generating it?
-	// Usually, Buyer shows code to Seller. So Buyer needs it in response.
-	if order.Status == StatusConfirmed || order.Status == StatusReadyOrShipped {
-		dto.ConfirmCode = &order.ConfirmCode
-	}
-
-	// Fill delivery details based on type
-	if order.DeliveryType == DeliveryTypePickup {
-		dto.PickupAddress = &seller.PickupAddress
-		dto.PickupTime = &seller.PickupTime
-	} else if order.DeliveryType == DeliveryTypeMyDelivery {
-		dto.ZoneCenterLat = &seller.DeliveryCenterLat
-		dto.ZoneCenterLng = &seller.DeliveryCenterLng
-		dto.ZoneRadiusKm = &seller.DeliveryRadiusKm
-		dto.ZoneCenterAddress = &seller.DeliveryCenterAddress
-	}
-
-	return dto
-}
-
-// Type definition for OrderDto needs to be available in this package or imported if moved to models/common
-// Since it was defined in order_handler.go (same package handlers), it is available.

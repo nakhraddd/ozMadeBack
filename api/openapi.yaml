@@ -2,3 +2,325 @@ openapi: 3.0.0
 info:
   title: OzMade API
   version: 1.0.0
+paths:
+  /orders:
+    post:
+      summary: Create a new order
+      operationId: createOrder
+      tags:
+        - Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+                - quantity
+                - delivery_type
+              properties:
+                product_id:
+                  type: integer
+                  example: 1
+                quantity:
+                  type: integer
+                  example: 2
+                delivery_type:
+                  type: string
+                  enum: [PICKUP, MY_DELIVERY, INTERCITY]
+                  example: PICKUP
+                shipping_address_text:
+                  type: string
+                  nullable: true
+                  example: "Almaty, Bostandyk district, street ..., house ..., apt ..."
+                shipping_comment:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDto'
+    get:
+      summary: Get buyer orders
+      operationId: getBuyerOrders
+      tags:
+        - Orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderDto'
+  /orders/{id}/cancel:
+    post:
+      summary: Cancel an order (Buyer)
+      operationId: cancelOrderBuyer
+      tags:
+        - Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Order ID
+      responses:
+        '200':
+          description: Order cancelled
+  /orders/{id}/received:
+    post:
+      summary: Confirm receipt of order (Buyer - Intercity)
+      operationId: buyerReceived
+      tags:
+        - Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Order ID
+      responses:
+        '200':
+          description: Order marked as received
+  /seller/delivery:
+    get:
+      summary: Get seller delivery settings
+      operationId: getSellerDelivery
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current delivery settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySettings'
+    patch:
+      summary: Update seller delivery settings
+      operationId: updateSellerDelivery
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliverySettings'
+      responses:
+        '200':
+          description: Updated delivery settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySettings'
+  /seller/orders:
+    get:
+      summary: Get seller orders
+      operationId: getSellerOrders
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of seller orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderDto'
+  /seller/orders/{id}/confirm:
+    post:
+      summary: Confirm order (Seller)
+      operationId: confirmOrderSeller
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Order ID
+      responses:
+        '200':
+          description: Order confirmed
+  /seller/orders/{id}/cancel:
+    post:
+      summary: Cancel order (Seller)
+      operationId: cancelOrderSeller
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Order ID
+      responses:
+        '200':
+          description: Order cancelled
+  /seller/orders/{id}/ready_or_shipped:
+    post:
+      summary: Mark order as ready or shipped (Seller)
+      operationId: readyOrShippedOrder
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Order ID
+      responses:
+        '200':
+          description: Order status updated
+  /seller/orders/{id}/complete:
+    post:
+      summary: Complete order (Seller)
+      operationId: completeOrderSeller
+      tags:
+        - Seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Order ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  description: Confirmation code provided by buyer
+      responses:
+        '200':
+          description: Order completed
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    OrderDto:
+      type: object
+      properties:
+        ID:
+          type: integer
+        Status:
+          type: string
+          enum: [PENDING_SELLER, CONFIRMED, READY_OR_SHIPPED, COMPLETED, CANCELLED_BY_BUYER, CANCELLED_BY_SELLER, EXPIRED]
+        CreatedAt:
+          type: string
+          format: date-time
+        ProductID:
+          type: integer
+        ProductTitle:
+          type: string
+        ProductImageUrl:
+          type: string
+        Price:
+          type: number
+        Quantity:
+          type: integer
+        TotalCost:
+          type: number
+        SellerID:
+          type: integer
+        SellerName:
+          type: string
+        DeliveryType:
+          type: string
+          enum: [PICKUP, MY_DELIVERY, INTERCITY]
+        PickupAddress:
+          type: string
+          nullable: true
+        PickupTime:
+          type: string
+          nullable: true
+        ZoneCenterLat:
+          type: number
+          nullable: true
+        ZoneCenterLng:
+          type: number
+          nullable: true
+        ZoneRadiusKm:
+          type: number
+          nullable: true
+        ZoneCenterAddress:
+          type: string
+          nullable: true
+        ShippingAddressText:
+          type: string
+          nullable: true
+        ShippingComment:
+          type: string
+          nullable: true
+        ConfirmCode:
+          type: string
+          nullable: true
+    DeliverySettings:
+      type: object
+      properties:
+        pickup_enabled:
+          type: boolean
+        pickup_address:
+          type: string
+          nullable: true
+        pickup_time:
+          type: string
+          nullable: true
+        free_delivery_enabled:
+          type: boolean
+        delivery_center_lat:
+          type: number
+          nullable: true
+        delivery_center_lng:
+          type: number
+          nullable: true
+        delivery_radius_km:
+          type: number
+          nullable: true
+        delivery_center_address:
+          type: string
+          nullable: true
+        intercity_enabled:
+          type: boolean

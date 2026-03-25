@@ -127,8 +127,12 @@ Stores order information.
 *   `product_id`: Foreign Key referencing `products.id` (uint)
 *   `quantity`: Quantity of the product ordered (int)
 *   `total_cost`: Total cost of the order (float64)
-*   `status`: Order status (e.g., "pending", "confirmed", "shipped", "completed", "cancelled") (string)
+*   `status`: Order status (e.g., "PENDING_SELLER", "CONFIRMED", "READY_OR_SHIPPED", "COMPLETED", "CANCELLED_BY_BUYER", "CANCELLED_BY_SELLER", "EXPIRED") (string)
 *   `created_at`: Timestamp of order creation
+*   `delivery_type`: Type of delivery ("PICKUP", "MY_DELIVERY", "INTERCITY") (string)
+*   `shipping_address_text`: Shipping address for intercity delivery (string)
+*   `shipping_comment`: Optional comment for shipping (string)
+*   `confirm_code`: Code for confirming order completion (string)
 
 ### Chats (`chats`)
 Stores chat sessions between a buyer and a seller.
@@ -262,7 +266,19 @@ Here is a list of available API endpoints for testing with Postman.
                 "ImageName": "https://signed-url-to-image.com/productA.jpg",
                 "CreatedAt": "2023-01-01T12:00:00Z",
                 "Comments": [],
-                "SellerName": "seller@example.com"
+                "SellerName": "seller@example.com",
+                "Delivery": {
+                    "pickupEnabled": true,
+                    "pickupTime": "10:00 - 18:00",
+                    "freeDeliveryEnabled": true,
+                    "freeDeliveryText": "Citywide",
+                    "intercityEnabled": true
+                },
+                "Seller": {
+                    "id": 7,
+                    "name": "Aruzhan",
+                    "address": "Almaty"
+                }
             }
         ]
         ```
@@ -291,7 +307,9 @@ Here is a list of available API endpoints for testing with Postman.
             "Comments": [
                 {"ID": 1, "UserID": 101, "ProductID": 1, "Rating": 5, "Text": "Great product!"}
             ],
-            "SellerName": "seller@example.com"
+            "SellerName": "seller@example.com",
+            "Delivery": { ... },
+            "Seller": { ... }
         }
         ```
     *   `404 Not Found`: If the product with the given ID does not exist.
@@ -325,7 +343,9 @@ Here is a list of available API endpoints for testing with Postman.
                 "AverageRating": 4.8,
                 "ImageName": "https://signed-url-to-image.com/productX.jpg",
                 "CreatedAt": "2023-01-15T10:00:00Z",
-                "Comments": []
+                "Comments": [],
+                "Delivery": { ... },
+                "Seller": { ... }
             }
         ]
         ```
@@ -500,13 +520,27 @@ Here is a list of available API endpoints for testing with Postman.
         ```json
         [
             {
-                "ID": 1,
-                "UserID": 1,
-                "ProductID": 1,
+                "ID": 101,
+                "Status": "PENDING_SELLER",
+                "CreatedAt": "2026-03-23T14:30:00Z",
+                "ProductID": 15,
+                "ProductTitle": "Homemade Cake",
+                "ProductImageUrl": "https://...",
+                "Price": 4500,
                 "Quantity": 2,
-                "TotalCost": 399.98,
-                "Status": "completed",
-                "CreatedAt": "2023-01-10T11:00:00Z"
+                "TotalCost": 9000,
+                "SellerID": 77,
+                "SellerName": "Aruzhan",
+                "DeliveryType": "INTERCITY",
+                "PickupAddress": null,
+                "PickupTime": null,
+                "ZoneCenterLat": null,
+                "ZoneCenterLng": null,
+                "ZoneRadiusKm": null,
+                "ZoneCenterAddress": null,
+                "ShippingAddressText": "Almaty, ...",
+                "ShippingComment": null,
+                "ConfirmCode": null
             }
         ]
         ```
@@ -575,11 +609,21 @@ Here is a list of available API endpoints for testing with Postman.
     {
         "product_id": 1,
         "quantity": 2,
-        "total_cost": 100.00
+        "delivery_type": "PICKUP",
+        "shipping_address_text": null
+    }
+    ```
+    OR
+    ```json
+    {
+        "product_id": 1,
+        "quantity": 2,
+        "delivery_type": "INTERCITY",
+        "shipping_address_text": "Almaty, Bostandyk district, street ..., house ..., apt ..."
     }
     ```
 *   **Responses**:
-    *   `201 Created`: Returns created order.
+    *   `201 Created`: Returns created order DTO.
 
 #### `POST /orders/:id/cancel`
 *   **Description**: Cancels an order (buyer side).
@@ -587,7 +631,7 @@ Here is a list of available API endpoints for testing with Postman.
     *   `200 OK`: `{"message": "Order cancelled"}`
 
 #### `POST /orders/:id/received`
-*   **Description**: Marks an order as received by buyer.
+*   **Description**: Marks an order as received by buyer (only for INTERCITY).
 *   **Responses**:
     *   `200 OK`: `{"message": "Order marked as received"}`
 
@@ -883,7 +927,7 @@ Here is a list of available API endpoints for testing with Postman.
 #### `POST /seller/orders/:id/confirm`
 *   **Description**: Confirms an order.
 *   **Responses**:
-    *   `200 OK`: `{"message": "Order confirmed"}`
+    *   `200 OK`: `{"message": "Order confirmed", "status": "CONFIRMED"}`
 
 #### `POST /seller/orders/:id/cancel`
 *   **Description**: Cancels an order (seller side).
@@ -897,6 +941,11 @@ Here is a list of available API endpoints for testing with Postman.
 
 #### `POST /seller/orders/:id/complete`
 *   **Description**: Completes an order.
+*   **Request Body**:
+    ```json
+    {
+        "code": "1234"
+    }
+    ```
 *   **Responses**:
     *   `200 OK`: `{"message": "Order completed"}`
-

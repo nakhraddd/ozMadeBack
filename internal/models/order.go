@@ -4,6 +4,24 @@ import (
 	"time"
 )
 
+// Order Status Constants
+const (
+	StatusPendingSeller     = "PENDING_SELLER"
+	StatusConfirmed         = "CONFIRMED"
+	StatusReadyOrShipped    = "READY_OR_SHIPPED"
+	StatusCompleted         = "COMPLETED"
+	StatusCancelledByBuyer  = "CANCELLED_BY_BUYER"
+	StatusCancelledBySeller = "CANCELLED_BY_SELLER"
+	StatusExpired           = "EXPIRED"
+)
+
+// Delivery Type Constants
+const (
+	DeliveryTypePickup     = "PICKUP"
+	DeliveryTypeMyDelivery = "MY_DELIVERY"
+	DeliveryTypeIntercity  = "INTERCITY"
+)
+
 type Order struct {
 	ID                  uint      `gorm:"primaryKey"`
 	UserID              uint      `json:"user_id"`
