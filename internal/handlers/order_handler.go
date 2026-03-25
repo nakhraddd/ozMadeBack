@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"math/rand"
 	"net/http"
 	"ozMadeBack/internal/database"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // Constants for Order Statuses and Delivery Types

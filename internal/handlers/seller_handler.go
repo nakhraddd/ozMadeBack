@@ -466,7 +466,20 @@ func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
 
 	// Map to DTO (Use similar logic to Buyer handler, but maybe less strict on hiding sensitive seller info if any)
 	// For simplicity, reusing a similar structure or just raw for now, but ideally strict DTO
-	c.JSON(http.StatusOK, orders)
+	var dtos []OrderDto
+	for _, order := range orders {
+		// Optimization: Could preload or batch fetch products/sellers if performance needed
+		var product models.Product
+		var seller models.Seller // Re-fetching seller to be safe with mapOrderToDto, or just reuse `seller`
+
+		database.DB.First(&product, order.ProductID)
+		// seller is already fetched above, but mapOrderToDto takes it.
+		// However, mapOrderToDto might want the seller associated with the product (which is this seller).
+
+		dtos = append(dtos, mapOrderToDto(order, product, seller))
+	}
+
+	c.JSON(http.StatusOK, dtos)
 }
 
 func (h *SellerHandler) ConfirmOrder(c *gin.Context) {
@@ -619,3 +632,52 @@ func isSellerOrder(userID uint, productID uint) bool {
 	database.DB.Model(&models.Product{}).Where("id = ? AND seller_id = ?", productID, seller.ID).Count(&count)
 	return count > 0
 }
+
+// Needed to map DTOs inside SellerHandler as well
+func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) OrderDto {
+	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
+
+	dto := OrderDto{
+		ID:                  order.ID,
+		Status:              order.Status,
+		CreatedAt:           order.CreatedAt,
+		ProductID:           product.ID,
+		ProductTitle:        product.Title,
+		ProductImageUrl:     imageUrl,
+		Price:               product.Cost,
+		Quantity:            order.Quantity,
+		TotalCost:           order.TotalCost,
+		SellerID:            seller.ID,
+		SellerName:          seller.User.Email, // Or seller name field
+		DeliveryType:        order.DeliveryType,
+		ShippingAddressText: order.ShippingAddressText,
+		ShippingComment:     order.ShippingComment,
+		// ConfirmCode:         &order.ConfirmCode, // Only expose if needed or logic dictates
+	}
+
+	// Conditionally expose confirm code to buyer if status is appropriate, usually buyer sees it to give to seller?
+	// Spec says: "Seller completes the order via POST /seller/orders/{id}/complete. Request: { "code": "1234" }"
+	// This implies Buyer has the code.
+	// For Seller view (which calls this same function now), they might need to see it too?
+	// Or maybe seller only sees it when generating it?
+	// Usually, Buyer shows code to Seller. So Buyer needs it in response.
+	if order.Status == StatusConfirmed || order.Status == StatusReadyOrShipped {
+		dto.ConfirmCode = &order.ConfirmCode
+	}
+
+	// Fill delivery details based on type
+	if order.DeliveryType == DeliveryTypePickup {
+		dto.PickupAddress = &seller.PickupAddress
+		dto.PickupTime = &seller.PickupTime
+	} else if order.DeliveryType == DeliveryTypeMyDelivery {
+		dto.ZoneCenterLat = &seller.DeliveryCenterLat
+		dto.ZoneCenterLng = &seller.DeliveryCenterLng
+		dto.ZoneRadiusKm = &seller.DeliveryRadiusKm
+		dto.ZoneCenterAddress = &seller.DeliveryCenterAddress
+	}
+
+	return dto
+}
+
+// Type definition for OrderDto needs to be available in this package or imported if moved to models/common
+// Since it was defined in order_handler.go (same package handlers), it is available.
