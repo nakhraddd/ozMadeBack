@@ -274,22 +274,7 @@ func (h *SellerHandler) GetDelivery(c *gin.Context) {
 		return
 	}
 
-	// Set default radius if 0
-	if seller.DeliveryRadiusKm == 0 {
-		seller.DeliveryRadiusKm = 3
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"pickup_enabled":          seller.PickupEnabled,
-		"pickup_address":          seller.PickupAddress,
-		"pickup_time":             seller.PickupTime,
-		"free_delivery_enabled":   seller.FreeDeliveryEnabled,
-		"delivery_center_lat":     seller.DeliveryCenterLat,
-		"delivery_center_lng":     seller.DeliveryCenterLng,
-		"delivery_radius_km":      seller.DeliveryRadiusKm,
-		"delivery_center_address": seller.DeliveryCenterAddress,
-		"intercity_enabled":       seller.IntercityEnabled,
-	})
+	c.JSON(http.StatusOK, serializeDeliverySettings(seller))
 }
 
 func (h *SellerHandler) UpdateDelivery(c *gin.Context) {
@@ -301,15 +286,15 @@ func (h *SellerHandler) UpdateDelivery(c *gin.Context) {
 	}
 
 	var input struct {
-		PickupEnabled         bool    `json:"pickup_enabled"`
-		PickupAddress         string  `json:"pickup_address"`
-		PickupTime            string  `json:"pickup_time"`
-		FreeDeliveryEnabled   bool    `json:"free_delivery_enabled"`
-		DeliveryCenterLat     float64 `json:"delivery_center_lat"`
-		DeliveryCenterLng     float64 `json:"delivery_center_lng"`
-		DeliveryRadiusKm      float64 `json:"delivery_radius_km"`
-		DeliveryCenterAddress string  `json:"delivery_center_address"`
-		IntercityEnabled      bool    `json:"intercity_enabled"`
+		PickupEnabled         *bool    `json:"pickup_enabled"`
+		PickupAddress         *string  `json:"pickup_address"`
+		PickupTime            *string  `json:"pickup_time"`
+		FreeDeliveryEnabled   *bool    `json:"free_delivery_enabled"`
+		DeliveryCenterLat     *float64 `json:"delivery_center_lat"`
+		DeliveryCenterLng     *float64 `json:"delivery_center_lng"`
+		DeliveryRadiusKm      *float64 `json:"delivery_radius_km"`
+		DeliveryCenterAddress *string  `json:"delivery_center_address"`
+		IntercityEnabled      *bool    `json:"intercity_enabled"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -317,22 +302,129 @@ func (h *SellerHandler) UpdateDelivery(c *gin.Context) {
 		return
 	}
 
-	seller.PickupEnabled = input.PickupEnabled
-	seller.PickupAddress = input.PickupAddress
-	seller.PickupTime = input.PickupTime
-	seller.FreeDeliveryEnabled = input.FreeDeliveryEnabled
-	seller.DeliveryCenterLat = input.DeliveryCenterLat
-	seller.DeliveryCenterLng = input.DeliveryCenterLng
-	seller.DeliveryRadiusKm = input.DeliveryRadiusKm
-	seller.DeliveryCenterAddress = input.DeliveryCenterAddress
-	seller.IntercityEnabled = input.IntercityEnabled
+	// Apply updates to a temporary variable to check constraints before saving
+	tempSeller := seller
+
+	if input.PickupEnabled != nil {
+		tempSeller.PickupEnabled = *input.PickupEnabled
+	}
+	if input.PickupAddress != nil {
+		tempSeller.PickupAddress = *input.PickupAddress
+	}
+	if input.PickupTime != nil {
+		tempSeller.PickupTime = *input.PickupTime
+	}
+	if input.FreeDeliveryEnabled != nil {
+		tempSeller.FreeDeliveryEnabled = *input.FreeDeliveryEnabled
+	}
+	if input.DeliveryCenterLat != nil {
+		tempSeller.DeliveryCenterLat = *input.DeliveryCenterLat
+	}
+	if input.DeliveryCenterLng != nil {
+		tempSeller.DeliveryCenterLng = *input.DeliveryCenterLng
+	}
+	if input.DeliveryRadiusKm != nil {
+		tempSeller.DeliveryRadiusKm = *input.DeliveryRadiusKm
+	}
+	if input.DeliveryCenterAddress != nil {
+		tempSeller.DeliveryCenterAddress = *input.DeliveryCenterAddress
+	}
+	if input.IntercityEnabled != nil {
+		tempSeller.IntercityEnabled = *input.IntercityEnabled
+	}
+
+	// Backend Validation
+	if tempSeller.PickupEnabled {
+		if tempSeller.PickupAddress == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "pickup_address is required when pickup_enabled is true"})
+			return
+		}
+		if tempSeller.PickupTime == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "pickup_time is required when pickup_enabled is true"})
+			return
+		}
+	}
+
+	if tempSeller.FreeDeliveryEnabled {
+		if tempSeller.DeliveryCenterLat == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "delivery_center_lat is required when free_delivery_enabled is true"})
+			return
+		}
+		if tempSeller.DeliveryCenterLng == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "delivery_center_lng is required when free_delivery_enabled is true"})
+			return
+		}
+		if tempSeller.DeliveryRadiusKm <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "delivery_radius_km must be > 0 when free_delivery_enabled is true"})
+			return
+		}
+		// delivery_center_address is preferably required, but let's enforce it if "preferably" means "should" in this context.
+		// If strict enforcement isn't needed, this check can be removed.
+		// Based on "delivery_center_address is preferably required", usually means we should warn or require it.
+		// Let's require it to be safe and consistent with "required" terminology elsewhere.
+		if tempSeller.DeliveryCenterAddress == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "delivery_center_address is required when free_delivery_enabled is true"})
+			return
+		}
+	}
+
+	// IntercityEnabled validation: "no additional fields are needed" - so we do nothing.
+
+	// If validation passes, update the actual seller object
+	seller = tempSeller
 
 	if err := database.DB.Save(&seller).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update delivery settings"})
 		return
 	}
 
-	c.JSON(http.StatusOK, seller)
+	c.JSON(http.StatusOK, serializeDeliverySettings(seller))
+}
+
+func serializeDeliverySettings(seller models.Seller) gin.H {
+	response := gin.H{
+		"pickup_enabled":        seller.PickupEnabled,
+		"free_delivery_enabled": seller.FreeDeliveryEnabled,
+		"intercity_enabled":     seller.IntercityEnabled,
+	}
+
+	if seller.PickupAddress != "" {
+		response["pickup_address"] = seller.PickupAddress
+	} else {
+		response["pickup_address"] = nil
+	}
+
+	if seller.PickupTime != "" {
+		response["pickup_time"] = seller.PickupTime
+	} else {
+		response["pickup_time"] = nil
+	}
+
+	if seller.DeliveryCenterLat != 0 {
+		response["delivery_center_lat"] = seller.DeliveryCenterLat
+	} else {
+		response["delivery_center_lat"] = nil
+	}
+
+	if seller.DeliveryCenterLng != 0 {
+		response["delivery_center_lng"] = seller.DeliveryCenterLng
+	} else {
+		response["delivery_center_lng"] = nil
+	}
+
+	if seller.DeliveryRadiusKm != 0 {
+		response["delivery_radius_km"] = seller.DeliveryRadiusKm
+	} else {
+		response["delivery_radius_km"] = nil
+	}
+
+	if seller.DeliveryCenterAddress != "" {
+		response["delivery_center_address"] = seller.DeliveryCenterAddress
+	} else {
+		response["delivery_center_address"] = nil
+	}
+
+	return response
 }
 
 func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
