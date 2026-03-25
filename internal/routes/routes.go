@@ -1,9 +1,10 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"ozMadeBack/internal/auth"
 	"ozMadeBack/internal/handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(r *gin.Engine) {
@@ -34,6 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		userRoutes.GET("", handlers.GetProfile)
 		userRoutes.PATCH("", handlers.UpdateProfile)
+		userRoutes.PATCH("/fcm-token", handlers.UpdateFCMToken)
 		userRoutes.POST("/favorites/:id", handlers.ToggleFavorite)
 		userRoutes.GET("/favorites", handlers.GetFavorites)
 		userRoutes.GET("/orders", handlers.GetBuyerOrders)

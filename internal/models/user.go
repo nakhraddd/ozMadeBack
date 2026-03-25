@@ -12,5 +12,6 @@ type User struct {
 	Address     string
 	Role        string `gorm:"default:'buyer'"`
 	IsSeller    bool   `gorm:"default:false"`
+	FCMToken    string `json:"fcm_token"`
 	CreatedAt   time.Time
 }

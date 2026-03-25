@@ -79,6 +79,7 @@ Stores user account information.
 *   `address`: User's default shipping address (string)
 *   `role`: User role, either "buyer" or "seller" (string)
 *   `is_seller`: Boolean flag indicating if the user has a seller profile (bool)
+*   `fcm_token`: Firebase Cloud Messaging token for push notifications (string)
 *   `created_at`: Timestamp of account creation
 
 ### Sellers (`sellers`)
@@ -184,10 +185,12 @@ Sellers upload their ID cards using a secure **GCP Signed URL** provided by the 
 ### "Most Viewed" Recommendation Algorithm
 A background worker (`internal/worker`) periodically calculates a time-decayed score for products based on their view count. The top-ranked products are cached in a Redis Sorted Set for fast retrieval on the main page.
 
-### Chat System
-The chat system uses WebSockets for real-time messaging and FCM for push notifications and unread counts.
+### Real-time Chat System
+The chat system uses a dual approach for notifications:
+*   **WebSockets**: For instant, real-time message delivery when the user has the application open. The client connects to the `/ws` endpoint after authentication.
+*   **Firebase Cloud Messaging (FCM)**: For sending push notifications to ensure message delivery even when the application is in the background or killed. This is the standard, free, and reliable way to deliver notifications on Android.
 
-## Getting Started
+### Getting Started
 
 ### Prerequisites
 *   Go (version 1.22 or later)
@@ -467,6 +470,19 @@ Here is a list of available API endpoints for testing with Postman.
     *   `400 Bad Request`: If the request body is invalid.
     *   `401 Unauthorized`: If the `Authorization` header is missing or the token is invalid.
     *   `404 Not Found`: If the user's profile cannot be found.
+
+#### `PATCH /profile/fcm-token`
+*   **Description**: Updates the user's Firebase Cloud Messaging (FCM) token.
+*   **Request Body**:
+    ```json
+    {
+        "fcm_token": "new_fcm_token_from_device"
+    }
+    ```
+*   **Responses**:
+    *   `200 OK`: `{"message": "FCM token updated"}`
+    *   `400 Bad Request`: If the request body is invalid.
+    *   `401 Unauthorized`: If the user is not authenticated.
 
 #### `POST /profile/favorites/:id`
 *   **Description**: Toggles a product's favorite status for the authenticated user. If already favorited, it unfavorites; otherwise, it favorites.

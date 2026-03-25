@@ -11,6 +11,7 @@ import (
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/routes"
 	"ozMadeBack/internal/services"
+	"ozMadeBack/pkg/realtime"
 
 	"cloud.google.com/go/storage"
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,10 @@ func main() {
 	// Start background worker
 	go services.StartTrendingWorker()
 
+	// Start WebSocket Hub
+	hub := realtime.GetHub()
+	go hub.Run()
+
 	opt := option.WithCredentialsFile(os.Getenv("FIREBASE_CREDENTIALS"))
 	storageClient, err := storage.NewClient(context.Background(), opt)
 	if err != nil {
@@ -39,6 +44,9 @@ func main() {
 	sellerHandler := handlers.NewSellerHandler(services.GCS)
 
 	r := gin.Default()
+
+	// WebSocket route
+	r.GET("/ws", realtime.HandleWebSocket)
 
 	routes.SetupRoutes(r)
 	routes.SellerRoutes(r, sellerHandler, auth.Client)

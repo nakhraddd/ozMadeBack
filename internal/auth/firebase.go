@@ -12,11 +12,15 @@ import (
 
 	"firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"firebase.google.com/go/v4/messaging"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/api/option"
 )
 
-var Client *auth.Client
+var (
+	Client *auth.Client
+	FCM    *messaging.Client
+)
 
 func InitFirebase() {
 	serviceAccountPath := config.GetEnv("FIREBASE_CREDENTIALS", "$HOME/firebase_credentials.json")
@@ -37,10 +41,20 @@ func InitFirebase() {
 	if err != nil {
 		log.Fatalf("error initializing app: %v\n", err)
 	}
+
 	Client, err = app.Auth(context.Background())
 	if err != nil {
 		log.Fatalf("error getting Auth client: %v\n", err)
 	}
+
+	FCM, err = app.Messaging(context.Background())
+	if err != nil {
+		log.Fatalf("error getting Messaging client: %v\n", err)
+	}
+}
+
+func GetFCMClient() *messaging.Client {
+	return FCM
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -77,7 +91,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", user.ID)
+		c.Set("userID", user.ID) // Using "userID" consistently as per handler usage
 		c.Next()
 	}
 }

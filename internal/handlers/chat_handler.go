@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
+	"ozMadeBack/pkg/realtime"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,16 +33,22 @@ func SendMessage(c *gin.Context) {
 
 	// Determine sender role
 	senderRole := ""
+	var recipientID uint
 
 	// Check if user is the buyer
 	if chat.BuyerID == userID {
 		senderRole = "BUYER"
+		var seller models.Seller
+		if err := database.DB.First(&seller, chat.SellerID).Error; err == nil {
+			recipientID = seller.UserID
+		}
 	} else {
 		// Check if user is the seller
 		var seller models.Seller
 		if err := database.DB.Where("id = ?", chat.SellerID).First(&seller).Error; err == nil {
 			if seller.UserID == userID {
 				senderRole = "SELLER"
+				recipientID = chat.BuyerID
 			}
 		}
 	}
@@ -59,6 +68,29 @@ func SendMessage(c *gin.Context) {
 	if err := database.DB.Create(&message).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message"})
 		return
+	}
+
+	// Send real-time notification via WebSocket
+	hub := realtime.GetHub()
+	notification, _ := json.Marshal(gin.H{
+		"type":    "new_message",
+		"chat_id": chat.ID,
+		"message": message,
+	})
+	hub.SendToUser(recipientID, notification)
+
+	// Send FCM push notification
+	var recipient models.User
+	if err := database.DB.First(&recipient, recipientID).Error; err == nil && recipient.FCMToken != "" {
+		_ = realtime.SendFCMNotification(
+			recipient.FCMToken,
+			"New Message",
+			input.Content, // Or "You have a new message" for privacy
+			map[string]string{
+				"chat_id": strconv.Itoa(int(chat.ID)),
+				"type":    "chat_message",
+			},
+		)
 	}
 
 	c.JSON(http.StatusCreated, message)
@@ -122,6 +154,29 @@ func InitiateChat(c *gin.Context) {
 			Content:    input.Content,
 		}
 		database.DB.Create(&message)
+
+		// Send real-time notification via WebSocket
+		hub := realtime.GetHub()
+		notification, _ := json.Marshal(gin.H{
+			"type":    "new_message",
+			"chat_id": chat.ID,
+			"message": message,
+		})
+		hub.SendToUser(seller.UserID, notification)
+
+		// Send FCM push notification to seller
+		var sellerUser models.User
+		if err := database.DB.First(&sellerUser, seller.UserID).Error; err == nil && sellerUser.FCMToken != "" {
+			_ = realtime.SendFCMNotification(
+				sellerUser.FCMToken,
+				"New Message",
+				input.Content,
+				map[string]string{
+					"chat_id": strconv.Itoa(int(chat.ID)),
+					"type":    "chat_message",
+				},
+			)
+		}
 	}
 
 	// Populate transient fields for response
