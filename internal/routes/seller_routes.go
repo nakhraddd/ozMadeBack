@@ -37,5 +37,6 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 
 		sellerGroup.GET("/chats", handlers.GetChats)
 		sellerGroup.GET("/chats/:chat_id/messages", handlers.GetChatMessages)
+		sellerGroup.POST("/chats/:chat_id/messages", handlers.SendMessage)
 	}
 }
