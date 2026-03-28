@@ -81,7 +81,6 @@ func (h *SellerHandler) GetUploadIDURL(c *gin.Context) {
 
 func (h *SellerHandler) GetUploadProductPhotoURL(c *gin.Context) {
 	userID := c.GetUint("userID")
-	contentType := c.DefaultQuery("contentType", "image/jpeg")
 
 	// Generate a unique file name
 	fileName := strconv.FormatUint(uint64(userID), 10) + "_" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".jpg"
@@ -473,7 +472,6 @@ func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
 	var dtos []OrderDto
 	for _, order := range orders {
 		var product models.Product
-		var seller models.Seller
 
 		database.DB.First(&product, order.ProductID)
 		// seller is already fetched above
@@ -632,50 +630,4 @@ func isSellerOrder(userID uint, productID uint) bool {
 	var count int64
 	database.DB.Model(&models.Product{}).Where("id = ? AND seller_id = ?", productID, seller.ID).Count(&count)
 	return count > 0
-}
-
-// Needed to map DTOs inside SellerHandler as well
-func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) OrderDto {
-	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
-
-	dto := OrderDto{
-		ID:                  order.ID,
-		Status:              order.Status,
-		CreatedAt:           order.CreatedAt,
-		ProductID:           product.ID,
-		ProductTitle:        product.Title,
-		ProductImageUrl:     imageUrl,
-		Price:               product.Cost,
-		Quantity:            order.Quantity,
-		TotalCost:           order.TotalCost,
-		SellerID:            seller.ID,
-		SellerName:          seller.User.Email, // Or seller name field
-		DeliveryType:        order.DeliveryType,
-		ShippingAddressText: order.ShippingAddressText,
-		ShippingComment:     order.ShippingComment,
-		// ConfirmCode:         &order.ConfirmCode, // Only expose if needed or logic dictates
-	}
-
-	// Conditionally expose confirm code to buyer if status is appropriate, usually buyer sees it to give to seller?
-	// Spec says: "Seller completes the order via POST /seller/orders/{id}/complete. Request: { "code": "1234" }"
-	// This implies Buyer has the code.
-	// For Seller view (which calls this same function now), they might need to see it too?
-	// Or maybe seller only sees it when generating it?
-	// Usually, Buyer shows code to Seller. So Buyer needs it in response.
-	if order.Status == models.StatusConfirmed || order.Status == models.StatusReadyOrShipped {
-		dto.ConfirmCode = &order.ConfirmCode
-	}
-
-	// Fill delivery details based on type
-	if order.DeliveryType == models.DeliveryTypePickup {
-		dto.PickupAddress = &seller.PickupAddress
-		dto.PickupTime = &seller.PickupTime
-	} else if order.DeliveryType == models.DeliveryTypeMyDelivery {
-		dto.ZoneCenterLat = &seller.DeliveryCenterLat
-		dto.ZoneCenterLng = &seller.DeliveryCenterLng
-		dto.ZoneRadiusKm = &seller.DeliveryRadiusKm
-		dto.ZoneCenterAddress = &seller.DeliveryCenterAddress
-	}
-
-	return dto
 }
