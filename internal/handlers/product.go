@@ -47,9 +47,15 @@ func GetProducts(c *gin.Context) {
 
 	var response []ProductResponse
 	for i := range products {
-		// Generate signed URL for image
+		// Generate signed URL for main image
 		url, _ := services.GenerateSignedURL(products[i].ImageName)
 		products[i].ImageName = url
+
+		// Generate signed URLs for gallery images
+		for j, imgName := range products[i].Images {
+			gUrl, _ := services.GenerateSignedURL(imgName)
+			products[i].Images[j] = gUrl
+		}
 
 		seller, exists := sellerMap[products[i].SellerID]
 		delivery := gin.H{}
@@ -114,8 +120,15 @@ func GetProduct(c *gin.Context) {
 		return
 	}
 
+	// Generate signed URL for main image
 	url, _ := services.GenerateSignedURL(product.ImageName)
 	product.ImageName = url
+
+	// Generate signed URLs for gallery images
+	for j, imgName := range product.Images {
+		gUrl, _ := services.GenerateSignedURL(imgName)
+		product.Images[j] = gUrl
+	}
 
 	// Fetch seller
 	var seller models.Seller
@@ -215,8 +228,15 @@ func GetTrendingProducts(c *gin.Context) {
 		}
 
 		for i := range products {
+			// Generate signed URL for main image
 			url, _ := services.GenerateSignedURL(products[i].ImageName)
 			products[i].ImageName = url
+
+			// Generate signed URLs for gallery images
+			for j, imgName := range products[i].Images {
+				gUrl, _ := services.GenerateSignedURL(imgName)
+				products[i].Images[j] = gUrl
+			}
 
 			seller, exists := sellerMap[products[i].SellerID]
 			delivery := gin.H{}

@@ -1,10 +1,11 @@
 package routes
 
 import (
-	"firebase.google.com/go/v4/auth"
-	"github.com/gin-gonic/gin"
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/middleware"
+
+	"firebase.google.com/go/v4/auth"
+	"github.com/gin-gonic/gin"
 )
 
 func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClient *auth.Client) {
@@ -13,6 +14,7 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 
 	sellerGroup.POST("/register", sellerHandler.RegisterSeller)
 	sellerGroup.GET("/upload-id-url", sellerHandler.GetUploadIDURL)
+	sellerGroup.GET("/upload-product-photo-url", sellerHandler.GetUploadProductPhotoURL)
 
 	sellerGroup.Use(middleware.SellerMiddleware())
 	{
