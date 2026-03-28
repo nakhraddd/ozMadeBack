@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"ozMadeBack/internal/database"
@@ -71,7 +72,7 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 func (h *SellerHandler) GetUploadIDURL(c *gin.Context) {
 	userID := c.GetUint("userID")
 	objectName := "seller_ids/" + strconv.FormatUint(uint64(userID), 10) + ".jpg"
-	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute)
+	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute, "image/jpeg")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate upload URL"})
 		return
@@ -82,11 +83,29 @@ func (h *SellerHandler) GetUploadIDURL(c *gin.Context) {
 func (h *SellerHandler) GetUploadProductPhotoURL(c *gin.Context) {
 	userID := c.GetUint("userID")
 
+	// Support both snake_case (Android) and camelCase
+	contentType := c.Query("content_type")
+	if contentType == "" {
+		contentType = c.Query("contentType")
+	}
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+
+	// Determine extension from content type
+	ext := ".jpg"
+	if strings.Contains(contentType, "png") {
+		ext = ".png"
+	} else if strings.Contains(contentType, "webp") {
+		ext = ".webp"
+	}
+
 	// Generate a unique file name
-	fileName := strconv.FormatUint(uint64(userID), 10) + "_" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".jpg"
+	fileName := strconv.FormatUint(uint64(userID), 10) + "_" + strconv.FormatInt(time.Now().UnixNano(), 10) + ext
 	objectName := "products/" + fileName
 
-	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute)
+	// Generate Signed URL ensuring the Content-Type is part of the signature
+	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute, contentType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate upload URL"})
 		return
@@ -94,7 +113,7 @@ func (h *SellerHandler) GetUploadProductPhotoURL(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"uploadUrl": url,
-		"fileUrl":   fileName, // The client will send this fileName to POST /seller/products
+		"fileUrl":   fileName,
 	})
 }
 

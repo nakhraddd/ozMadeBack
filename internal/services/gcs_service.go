@@ -27,11 +27,12 @@ func NewGCSService(bucketName string, client *storage.Client) *GCSService {
 	}
 }
 
-func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry time.Duration) (string, error) {
+func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry time.Duration, contentType string) (string, error) {
 	opts := &storage.SignedURLOptions{
-		Scheme:  storage.SigningSchemeV4,
-		Method:  method,
-		Expires: time.Now().Add(expiry),
+		Scheme:      storage.SigningSchemeV4,
+		Method:      method,
+		Expires:     time.Now().Add(expiry),
+		ContentType: contentType,
 	}
 
 	u, err := s.Client.Bucket(s.BucketName).SignedURL(objectName, opts)
