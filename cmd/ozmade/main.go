@@ -34,13 +34,27 @@ func main() {
 	hub := realtime.GetHub()
 	go hub.Run()
 
-	opt := option.WithCredentialsFile(os.Getenv("FIREBASE_CREDENTIALS"))
+	credsPath := os.Getenv("FIREBASE_CREDENTIALS")
+	if credsPath == "" {
+		log.Fatal("FIREBASE_CREDENTIALS environment variable is not set")
+	}
+
+	opt := option.WithCredentialsFile(credsPath)
 	storageClient, err := storage.NewClient(context.Background(), opt)
 	if err != nil {
 		log.Fatalf("error creating storage client: %v\n", err)
 	}
 
-	services.InitGCSService(os.Getenv("GCS_BUCKET_NAME"), storageClient)
+	bucketName := os.Getenv("GCS_BUCKET_NAME")
+	if bucketName == "" {
+		// FALLBACK: If GCS_BUCKET_NAME is not set, try to use the project ID from Firebase as a guess
+		// but it's better to log an error.
+		log.Println("CRITICAL ERROR: GCS_BUCKET_NAME environment variable is empty!")
+	} else {
+		log.Printf("Initializing GCS with bucket: %s\n", bucketName)
+	}
+
+	services.InitGCSService(bucketName, storageClient)
 	sellerHandler := handlers.NewSellerHandler(services.GCS)
 
 	r := gin.Default()
