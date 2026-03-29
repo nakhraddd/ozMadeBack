@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"ozMadeBack/config"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
@@ -12,8 +14,9 @@ import (
 
 type ProductResponse struct {
 	models.Product
-	Delivery gin.H `json:"delivery"`
-	Seller   gin.H `json:"seller"`
+	Delivery  gin.H  `json:"delivery"`
+	Seller    gin.H  `json:"seller"`
+	ShareLink string `json:"share_link"`
 }
 
 func GetProducts(c *gin.Context) {
@@ -44,6 +47,8 @@ func GetProducts(c *gin.Context) {
 			sellerMap[s.ID] = s
 		}
 	}
+
+	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade.com")
 
 	var response []ProductResponse
 	for i := range products {
@@ -103,9 +108,10 @@ func GetProducts(c *gin.Context) {
 		}
 
 		response = append(response, ProductResponse{
-			Product:  products[i],
-			Delivery: delivery,
-			Seller:   sellerInfo,
+			Product:   products[i],
+			Delivery:  delivery,
+			Seller:    sellerInfo,
+			ShareLink: fmt.Sprintf("%s/products/%d", appLinkBase, products[i].ID),
 		})
 	}
 
@@ -175,10 +181,13 @@ func GetProduct(c *gin.Context) {
 		}
 	}
 
+	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade.com")
+
 	response := ProductResponse{
-		Product:  product,
-		Delivery: delivery,
-		Seller:   sellerInfo,
+		Product:   product,
+		Delivery:  delivery,
+		Seller:    sellerInfo,
+		ShareLink: fmt.Sprintf("%s/products/%d", appLinkBase, product.ID),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -226,6 +235,8 @@ func GetTrendingProducts(c *gin.Context) {
 				sellerMap[s.ID] = s
 			}
 		}
+
+		appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade.com")
 
 		for i := range products {
 			// Generate signed URL for main image
@@ -283,9 +294,10 @@ func GetTrendingProducts(c *gin.Context) {
 			}
 
 			response = append(response, ProductResponse{
-				Product:  products[i],
-				Delivery: delivery,
-				Seller:   sellerInfo,
+				Product:   products[i],
+				Delivery:  delivery,
+				Seller:    sellerInfo,
+				ShareLink: fmt.Sprintf("%s/products/%d", appLinkBase, products[i].ID),
 			})
 		}
 	} else {
