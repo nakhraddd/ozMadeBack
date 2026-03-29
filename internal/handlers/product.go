@@ -48,7 +48,7 @@ func GetProducts(c *gin.Context) {
 		}
 	}
 
-	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade.com")
+	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "http://34.178.41.41:8080")
 
 	var response []ProductResponse
 	for i := range products {
@@ -181,7 +181,7 @@ func GetProduct(c *gin.Context) {
 		}
 	}
 
-	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade.com")
+	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "http://34.178.41.41:8080")
 
 	response := ProductResponse{
 		Product:   product,
@@ -236,7 +236,7 @@ func GetTrendingProducts(c *gin.Context) {
 			}
 		}
 
-		appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade.com")
+		appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "http://34.178.41.41:8080")
 
 		for i := range products {
 			// Generate signed URL for main image
