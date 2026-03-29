@@ -23,6 +23,7 @@ func GetProfile(c *gin.Context) {
 func UpdateProfile(c *gin.Context) {
 	userID := c.GetUint("userID")
 	var input struct {
+		Name    string `json:"name"`
 		Email   string `json:"email"`
 		Address string `json:"address"`
 	}
@@ -37,13 +38,15 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	if input.Name != "" {
+		user.Name = input.Name
+	}
 	if input.Email != "" {
 		user.Email = input.Email
 	}
-	// Removed invalid field reference
-	// if input.Address != "" {
-	// 	user.Address = input.Address
-	// }
+	if input.Address != "" {
+		user.Address = input.Address
+	}
 
 	database.DB.Save(&user)
 	c.JSON(http.StatusOK, user)

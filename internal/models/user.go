@@ -9,6 +9,7 @@ type User struct {
 	FirebaseUID string `gorm:"uniqueIndex"`
 	PhoneNumber string
 	Email       string
+	Name        string `json:"name"`
 	Address     string
 	Role        string `gorm:"default:'buyer'"`
 	IsSeller    bool   `gorm:"default:false"`
