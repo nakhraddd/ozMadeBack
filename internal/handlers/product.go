@@ -1,15 +1,18 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"ozMadeBack/config"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
+	productservice "ozMadeBack/internal/service/product"
 	"ozMadeBack/internal/services"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type ProductResponse struct {
@@ -120,8 +123,24 @@ func GetProducts(c *gin.Context) {
 
 func GetProduct(c *gin.Context) {
 	id := c.Param("id")
-	var product models.Product
-	if err := database.DB.Preload("Comments").First(&product, id).Error; err != nil {
+	productID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	product, err := productservice.NewDefaultService().GetProduct(c.Request.Context(), uint(productID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product"})
+		return
+	}
+
+	if product.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 		return
 	}
@@ -195,32 +214,36 @@ func GetProduct(c *gin.Context) {
 
 func ViewProduct(c *gin.Context) {
 	id := c.Param("id")
-	var product models.Product
-	if err := database.DB.First(&product, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+	productID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
 
-	product.ViewCount++
-	database.DB.Save(&product)
-	database.RDB.ZIncrBy(c.Request.Context(), "trending_products", 1, id)
+	err = productservice.NewDefaultService().IncrementView(c.Request.Context(), uint(productID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product view"})
+		return
+	}
 
 	c.Status(http.StatusOK)
 }
 
 func GetTrendingProducts(c *gin.Context) {
-	ids, err := database.RDB.ZRevRange(c.Request.Context(), "trending_products", 0, 19).Result()
+	products, err := productservice.NewDefaultService().GetTrendingProducts(c.Request.Context(), 20)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch trending products"})
 		return
 	}
 
-	var products []models.Product
 	var response []ProductResponse
 
-	if len(ids) > 0 {
-		database.DB.Where("id IN ?", ids).Find(&products)
-
+	if len(products) > 0 {
 		// Fetch sellers
 		var sellerIDs []uint
 		for _, p := range products {

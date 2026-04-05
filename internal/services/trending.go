@@ -2,34 +2,26 @@ package services
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
-	"math"
-	"ozMadeBack/internal/database"
-	"ozMadeBack/internal/models"
+	"log"
+	productservice "ozMadeBack/internal/service/product"
 	"time"
 )
 
 func StartTrendingWorker() {
+	service := productservice.NewDefaultService()
+	if err := service.RefreshTrendingScores(context.Background()); err != nil {
+		log.Printf("failed to build initial trending scores: %v", err)
+	}
+
 	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
-			updateTrendingScores()
+			if err := service.RefreshTrendingScores(context.Background()); err != nil {
+				log.Printf("failed to refresh trending scores: %v", err)
+			}
 		}
-	}
-}
-
-func updateTrendingScores() {
-	var products []models.Product
-	database.DB.Find(&products)
-
-	for _, p := range products {
-		hoursOld := time.Since(p.CreatedAt).Hours()
-		score := float64(p.ViewCount) / math.Pow(hoursOld+2, 1.8)
-
-		database.RDB.ZAdd(context.Background(), "trending_products", &redis.Z{
-			Score:  score,
-			Member: p.ID,
-		})
 	}
 }
