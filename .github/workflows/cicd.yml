@@ -152,7 +152,7 @@ jobs:
             newgrp docker || true
             # Pull the latest image and restart the services
             docker compose pull
-            docker compose up -d --remove-orphans
+            docker compose up -d --remove-orphans --force-recreate
             
             echo "Checking environment variables inside container..."
             sudo docker compose exec -T app env | grep GCS_BUCKET_NAME || echo "Variable NOT found!"
