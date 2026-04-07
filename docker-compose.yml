@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: ${DOCKERHUB_USERNAME}/ozmadeback:latest
+    image: ${DOCKERHUB_USERNAME}/ozmadeback:${IMAGE_TAG:-latest}
     ports:
       - "8080:8080"
     # Using env_file is cleaner. Docker will automatically inject everything from

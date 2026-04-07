@@ -104,9 +104,15 @@ jobs:
     name: Build and Push Docker Image
     needs: build-and-test
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image-meta.outputs.image_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Prepare image metadata
+        id: image-meta
+        run: echo "image_tag=${GITHUB_SHA}" >> $GITHUB_OUTPUT
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -119,7 +125,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ozmadeback:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ozmadeback:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/ozmadeback:${{ steps.image-meta.outputs.image_tag }}
 
   deploy:
     name: Deploy to VM
@@ -137,8 +145,10 @@ jobs:
       - name: Prepare deployment files
         run: |
           echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > .env
+          echo "IMAGE_TAG=${{ needs.build-and-push-docker.outputs.image_tag }}" >> .env
           echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db-instance?sslmode=disable" >> .env
-          echo "GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}" >> .env          # Create credentials separately
+          echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/firebase_credentials.json" >> .env
+          echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
           echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > firebase_credentials.json
 
       - name: Copy deployment files to server
@@ -163,10 +173,6 @@ jobs:
             newgrp docker || true
             # Pull the latest image and restart the services
             docker compose pull
-            docker compose up -d --remove-orphans --force-recreate
-            
-            echo "Checking environment variables inside container..."
-            sudo docker compose exec -T .env | grep GCS_BUCKET_NAME || echo "Variable NOT found!"
-            
+            docker compose up -d --pull always --force-recreate --remove-orphans
             echo "🚀 Deployment Successful!"
             docker compose ps
