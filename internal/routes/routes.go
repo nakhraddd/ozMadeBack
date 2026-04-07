@@ -20,10 +20,11 @@ func SetupRoutes(r *gin.Engine) {
 
 	productRoutes := r.Group("/products")
 	{
+		productRoutes.GET("/search", handlers.SearchProducts)
+		productRoutes.GET("/trending", handlers.GetTrendingProducts)
 		productRoutes.GET("", handlers.GetProducts)
 		productRoutes.GET("/:id", handlers.GetProduct)
 		productRoutes.POST("/:id/view", handlers.ViewProduct)
-		productRoutes.GET("/trending", handlers.GetTrendingProducts)
 
 		productRoutes.Use(auth.AuthMiddleware())
 		productRoutes.POST("/:id/comments", handlers.PostComment)

@@ -10,14 +10,27 @@ services:
       - FIREBASE_CREDENTIALS=/app/firebase_credentials.json
       - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
       - REDIS_ADDR=redis:6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_INDEX=products
     volumes:
       - ./firebase_credentials.json:/app/firebase_credentials.json
     depends_on:
       - redis
+      - elasticsearch
     restart: always
 
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
+    restart: always
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
     restart: always

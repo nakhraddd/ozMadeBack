@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -199,6 +200,7 @@ func (h *SellerHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
+	services.IndexProductAsync(product)
 	c.JSON(http.StatusCreated, product)
 }
 
@@ -254,6 +256,7 @@ func (h *SellerHandler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
+	services.IndexProductAsync(product)
 	c.JSON(http.StatusOK, product)
 }
 
@@ -270,6 +273,13 @@ func (h *SellerHandler) DeleteProduct(c *gin.Context) {
 	if err := database.DB.Where("id = ? AND seller_id = ?", productID, seller.ID).Delete(&models.Product{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
 		return
+	}
+
+	productIDUint, err := strconv.ParseUint(productID, 10, 64)
+	if err != nil {
+		log.Printf("failed to parse deleted product ID %q for search cleanup: %v", productID, err)
+	} else {
+		services.DeleteProductFromSearchAsync(uint(productIDUint))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted"})

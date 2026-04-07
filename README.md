@@ -288,6 +288,26 @@ Here is a list of available API endpoints for testing with Postman.
         ```
     *   `500 Internal Server Error`: If there's an issue fetching products.
 
+#### `GET /products/search`
+*   **Description**: Searches products using the product search index with full-text matching and filters.
+*   **Query Parameters**:
+    *   `q` (string, optional): Full-text search query across title, description, categories, type, composition, and address.
+    *   `type` (string, optional): Filter products by type.
+    *   `category` (string, optional): Filter products by category.
+    *   `min_cost` (number, optional): Minimum product price.
+    *   `max_cost` (number, optional): Maximum product price.
+    *   `page` (integer, optional): Page number for pagination (default: 1).
+    *   `limit` (integer, optional): Number of items per page (default: 20, max: 100).
+*   **Request Body**: None
+*   **Example**:
+    ```http
+    GET /products/search?q=lamp&category=decor&type=home&min_cost=10&max_cost=200&page=1&limit=20
+    ```
+*   **Responses**:
+    *   `200 OK`: Returns the same `ProductResponse` structure as `GET /products`, ordered by search relevance.
+    *   `400 Bad Request`: If `min_cost` or `max_cost` is not a valid number.
+    *   `500 Internal Server Error`: If there's an issue searching or loading products.
+
 #### `GET /products/:id`
 *   **Description**: Retrieves details for a single product by its ID.
 *   **Path Parameters**:

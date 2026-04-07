@@ -24,6 +24,7 @@ func main() {
 	database.Connect(os.Getenv("DATABASE_URL"))
 	database.Migrate()
 	database.InitRedis()
+	services.InitProductSearchService()
 
 	auth.InitFirebase()
 
@@ -55,6 +56,7 @@ func main() {
 	}
 
 	services.InitGCSService(bucketName, storageClient)
+	services.BootstrapProductIndex(context.Background())
 	sellerHandler := handlers.NewSellerHandler(services.GCS)
 
 	r := gin.Default()
