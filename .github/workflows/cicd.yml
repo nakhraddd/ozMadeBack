@@ -152,5 +152,9 @@ jobs:
             # Pull the latest image and restart the services
             docker compose pull
             docker compose up -d --remove-orphans
+            
+            echo "Checking environment variables inside container..."
+            sudo docker compose exec -T app env | grep GCS_BUCKET_NAME || echo "Variable NOT found!"
+            
             echo "🚀 Deployment Successful!"
             docker compose ps
