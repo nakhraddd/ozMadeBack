@@ -20,9 +20,3 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
-
-variable "existing_gcs_bucket_name" {
-  description = "Name of an existing GCS bucket"
-  type        = string
-  default     = ""
-}

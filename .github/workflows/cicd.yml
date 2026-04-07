@@ -53,8 +53,6 @@ jobs:
             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}"
-            -var="existing_gcs_bucket_name=${{ secrets.GCS_BUCKET_NAME }}"
-          
 
       - name: Debug Terraform Outputs
         run: |
