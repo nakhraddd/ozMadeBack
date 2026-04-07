@@ -1,3 +1,4 @@
+// internal/services/gcs_service.go
 package services
 
 import (
@@ -5,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings" // Added for string manipulation
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -60,17 +62,19 @@ func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry 
 		return "", fmt.Errorf("GCS_BUCKET_NAME is not configured")
 	}
 
-	// Important: To use storage.SignedURL (package-level), we MUST provide
-	// GoogleAccessID and PrivateKey in the options.
 	if s.Creds == nil || s.Creds.ClientEmail == "" || s.Creds.PrivateKey == "" {
 		return "", fmt.Errorf("signing credentials are not properly configured")
 	}
+
+	// Normalize the content type string to avoid subtle mismatches
+	normalizedContentType := strings.ToLower(strings.TrimSpace(contentType))
+	log.Printf("GCS: Signing URL for object '%s' with Content-Type: '%s'\n", objectName, normalizedContentType)
 
 	opts := &storage.SignedURLOptions{
 		Scheme:         storage.SigningSchemeV4,
 		Method:         method,
 		Expires:        time.Now().Add(expiry),
-		ContentType:    contentType,
+		ContentType:    normalizedContentType, // Use the normalized content type
 		GoogleAccessID: s.Creds.ClientEmail,
 		PrivateKey:     []byte(s.Creds.PrivateKey),
 	}
