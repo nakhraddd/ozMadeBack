@@ -9,6 +9,5 @@ output "db_connection_name" {
 }
 
 output "gcs_bucket_name" {
-  description = "The name of the GCS bucket for application assets."
-  value       = google_storage_bucket.storage_bucket.name
+  value = var.existing_gcs_bucket_name
 }

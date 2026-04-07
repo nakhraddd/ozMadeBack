@@ -53,6 +53,8 @@ jobs:
             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}"
+            -var="existing_gcs_bucket_name=${{ secrets.GCS_BUCKET_NAME }}"
+          
 
       - name: Debug Terraform Outputs
         run: |
@@ -138,8 +140,7 @@ jobs:
         run: |
           echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > app.env
           echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db-instance?sslmode=disable" >> app.env
-          echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> app.env
-          # Create credentials separately
+          echo "GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}" >> app.env          # Create credentials separately
           echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > firebase_credentials.json
 
       - name: Copy deployment files to server
