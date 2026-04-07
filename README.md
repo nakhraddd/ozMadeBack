@@ -76,6 +76,7 @@ Stores user account information.
 *   `firebase_uid`: Unique identifier from Firebase Auth (string, unique)
 *   `phone_number`: User's phone number (string)
 *   `email`: User's email address (string)
+*   `name`: User's full name (string)
 *   `address`: User's default shipping address (string)
 *   `role`: User role, either "buyer" or "seller" (string)
 *   `is_seller`: Boolean flag indicating if the user has a seller profile (bool)
@@ -366,14 +367,15 @@ Here is a list of available API endpoints for testing with Postman.
         {
             "user_id": 1,
             "profile": {
-                "ID": 1,
-                "FirebaseUID": "firebase_uid_123",
-                "PhoneNumber": "+1234567890",
-                "Email": "user@example.com",
-                "Address": "",
-                "Role": "buyer",
-                "IsSeller": false,
-                "CreatedAt": "2023-01-01T12:00:00Z"
+                "id": 1,
+                "firebase_uid": "firebase_uid_123",
+                "phone_number": "+1234567890",
+                "email": "user@example.com",
+                "name": "User Name",
+                "address": "",
+                "role": "buyer",
+                "is_seller": false,
+                "created_at": "2023-01-01T12:00:00Z"
             }
         }
         ```
@@ -430,14 +432,15 @@ Here is a list of available API endpoints for testing with Postman.
     *   `200 OK`:
         ```json
         {
-            "ID": 1,
-            "FirebaseUID": "firebase_uid_123",
-            "PhoneNumber": "+1234567890",
-            "Email": "user@example.com",
-            "Address": "789 Pine St",
-            "Role": "buyer",
-            "IsSeller": false,
-            "CreatedAt": "2023-01-01T12:00:00Z"
+            "id": 1,
+            "firebase_uid": "firebase_uid_123",
+            "phone_number": "+1234567890",
+            "email": "user@example.com",
+            "name": "User Name",
+            "address": "789 Pine St",
+            "role": "buyer",
+            "is_seller": false,
+            "created_at": "2023-01-01T12:00:00Z"
         }
         ```
     *   `401 Unauthorized`: If the `Authorization` header is missing or the token is invalid.
@@ -448,6 +451,7 @@ Here is a list of available API endpoints for testing with Postman.
 *   **Request Body**:
     ```json
     {
+        "name": "New Name",
         "email": "new_email@example.com",
         "address": "New Address, City, Country"
     }
@@ -457,14 +461,15 @@ Here is a list of available API endpoints for testing with Postman.
     *   `200 OK`: Returns the updated user profile.
         ```json
         {
-            "ID": 1,
-            "FirebaseUID": "firebase_uid_123",
-            "PhoneNumber": "+1234567890",
-            "Email": "new_email@example.com",
-            "Address": "New Address, City, Country",
-            "Role": "buyer",
-            "IsSeller": false,
-            "CreatedAt": "2023-01-01T12:00:00Z"
+            "id": 1,
+            "firebase_uid": "firebase_uid_123",
+            "phone_number": "+1234567890",
+            "email": "new_email@example.com",
+            "name": "New Name",
+            "address": "New Address, City, Country",
+            "role": "buyer",
+            "is_seller": false,
+            "created_at": "2023-01-01T12:00:00Z"
         }
         ```
     *   `400 Bad Request`: If the request body is invalid.
@@ -653,7 +658,12 @@ Here is a list of available API endpoints for testing with Postman.
 
 #### `POST /seller/register`
 *   **Description**: Allows an authenticated user to apply to become a seller.
-*   **Request Body**: None
+*   **Request Body**:
+    ```json
+    {
+        "name": "Seller Name"
+    }
+    ```
 *   **Responses**:
     *   `200 OK`:
         ```json
@@ -813,7 +823,7 @@ Here is a list of available API endpoints for testing with Postman.
     *   `200 OK`:
         ```json
         {
-            "name": "seller@example.com",
+            "name": "User Name",
             "status": "approved",
             "total_products": 5
         }
@@ -823,17 +833,21 @@ Here is a list of available API endpoints for testing with Postman.
     *   `404 Not Found`: If the seller profile cannot be found.
 
 #### `PATCH /seller/profile`
-*   **Description**: Updates the authenticated seller's profile information. Currently supports updating the profile picture (though the actual upload is handled via a signed URL).
+*   **Description**: Updates the authenticated seller's profile information.
 *   **Request Body**:
     ```json
     {
+        "name": "New Seller Name",
         "profile_picture": "https://example.com/new_seller_profile.jpg"
     }
     ```
 *   **Responses**:
     *   `200 OK`:
         ```json
-        {"message": "Profile updated"}
+        {
+            "message": "Profile updated",
+            "name": "New Seller Name"
+        }
         ```
     *   `400 Bad Request`: If the request body is invalid.
     *   `401 Unauthorized`: If the `Authorization` header is missing or the token is invalid.
