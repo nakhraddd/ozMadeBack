@@ -70,3 +70,11 @@ resource "google_compute_instance" "app_server" {
     scopes = ["cloud-platform"]
   }
 }
+
+resource "google_storage_bucket" "storage_bucket" {
+  name          = "${var.project_id}-ozmadeback-assets" # Must be globally unique
+  location      = var.region
+  force_destroy = true # Allows Terraform to delete it even if it has files
+
+  uniform_bucket_level_access = true
+}
