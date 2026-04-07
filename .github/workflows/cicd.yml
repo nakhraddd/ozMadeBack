@@ -54,6 +54,13 @@ jobs:
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}"
 
+      - name: Debug Terraform Outputs
+        run: |
+          echo "=== Terraform Outputs (Raw) ==="
+          terraform -chdir=terraform output -raw gcs_bucket_name || echo "FAILED to get output"
+          echo "=== All Terraform Outputs (JSON) ==="
+          terraform -chdir=terraform output -json
+
       - name: Store Terraform Outputs
         id: terraform-output
         run: |
@@ -121,6 +128,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Debug Variables from Provision Job
+        run: |
+          echo "DB_IP: ${{ needs.provision.outputs.db_ip }}"
+          echo "GCS_BUCKET_NAME: ${{ needs.provision.outputs.gcs_bucket_name }}"
 
       - name: Prepare deployment files
         run: |
