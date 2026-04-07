@@ -42,6 +42,13 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		return
 	}
 
+	var input struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&input); err == nil && input.Name != "" {
+		user.Name = input.Name
+	}
+
 	seller := models.Seller{
 		UserID: userID,
 		Status: "pending",
@@ -55,10 +62,15 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		return
 	}
 
-	if err := tx.Model(&user).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"is_seller": true,
 		"role":      "seller",
-	}).Error; err != nil {
+	}
+	if user.Name != "" {
+		updates["name"] = user.Name
+	}
+
+	if err := tx.Model(&user).Updates(updates).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user status"})
 		return
@@ -274,8 +286,13 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	var productCount int64
 	database.DB.Model(&models.Product{}).Where("seller_id = ?", seller.ID).Count(&productCount)
 
+	name := seller.User.Name
+	if name == "" {
+		name = seller.User.Email
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"name":           seller.User.Email,
+		"name":           name,
 		"status":         seller.Status,
 		"total_products": productCount,
 	})
@@ -283,13 +300,14 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 
 func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetUint("userID")
-	var seller models.Seller
-	if err := database.DB.Where("user_id = ?", userID).First(&seller).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
 	var input struct {
+		Name           string `json:"name"`
 		ProfilePicture string `json:"profile_picture"`
 	}
 
@@ -298,11 +316,15 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// Logic to update profile picture (e.g., generate signed URL for upload)
-	// For simplicity, assuming the input contains the new profile picture URL or path
-	// In a real scenario, you might generate a signed URL for the client to upload the image
+	if input.Name != "" {
+		user.Name = input.Name
+		database.DB.Model(&user).Update("name", user.Name)
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile updated"})
+	// Logic for profile picture can be added later if needed
+	// For now, let's at least update the name which was requested
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated", "name": user.Name})
 }
 
 func (h *SellerHandler) GetDelivery(c *gin.Context) {
