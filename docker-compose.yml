@@ -15,6 +15,7 @@ services:
       - REDIS_ADDR=redis:6379
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_INDEX=products
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
     volumes:
       - ./firebase_credentials.json:/app/firebase_credentials.json
     depends_on:
