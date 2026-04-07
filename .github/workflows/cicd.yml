@@ -136,7 +136,7 @@ jobs:
           host: ${{ needs.provision.outputs.instance_ip }}
           username: gcp-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,.env,firebase_credentials.json"
+          source: "docker-compose.yml,app.env,firebase_credentials.json"
           target: "/home/gcp-user/app"
           rm: true
 
