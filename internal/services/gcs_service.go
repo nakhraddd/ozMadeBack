@@ -71,10 +71,10 @@ func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry 
 	log.Printf("GCS: Signing URL for object '%s' with Content-Type: '%s'\n", objectName, normalizedContentType)
 
 	opts := &storage.SignedURLOptions{
-		Scheme:         storage.SigningSchemeV4,
-		Method:         method,
-		Expires:        time.Now().Add(expiry),
-		ContentType:    normalizedContentType, // Use the normalized content type
+		Scheme:  storage.SigningSchemeV4,
+		Method:  method,
+		Expires: time.Now().Add(expiry),
+		//ContentType:    normalizedContentType, // Use the normalized content type
 		GoogleAccessID: s.Creds.ClientEmail,
 		PrivateKey:     []byte(s.Creds.PrivateKey),
 	}
