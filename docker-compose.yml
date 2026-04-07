@@ -8,7 +8,7 @@ services:
     # Using env_file is cleaner. Docker will automatically inject everything from
     # the .env file we created in GitHub Actions (DATABASE_URL, GCS_BUCKET_NAME, etc.)
     env_file:
-      - app.env
+      - .env
     environment:
       # We explicitly set these because they are internal container paths/names
       - FIREBASE_CREDENTIALS=/app/firebase_credentials.json

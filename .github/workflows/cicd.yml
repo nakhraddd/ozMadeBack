@@ -136,9 +136,9 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > app.env
-          echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db-instance?sslmode=disable" >> app.env
-          echo "GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}" >> app.env          # Create credentials separately
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > .env
+          echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db-instance?sslmode=disable" >> .env
+          echo "GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}" >> .env          # Create credentials separately
           echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > firebase_credentials.json
 
       - name: Copy deployment files to server
@@ -147,7 +147,7 @@ jobs:
           host: ${{ needs.provision.outputs.instance_ip }}
           username: gcp-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,app.env,firebase_credentials.json"
+          source: "docker-compose.yml,.env,firebase_credentials.json"
           target: "/home/gcp-user/app"
           rm: true
 
@@ -166,7 +166,7 @@ jobs:
             docker compose up -d --remove-orphans --force-recreate
             
             echo "Checking environment variables inside container..."
-            sudo docker compose exec -T app env | grep GCS_BUCKET_NAME || echo "Variable NOT found!"
+            sudo docker compose exec -T .env | grep GCS_BUCKET_NAME || echo "Variable NOT found!"
             
             echo "🚀 Deployment Successful!"
             docker compose ps
