@@ -44,7 +44,11 @@ func InitGCSService(bucketName string, client *storage.Client) {
 			if err := json.Unmarshal(data, &key); err == nil {
 				gcs.Creds = &key
 				log.Println("GCS Service loaded signing credentials from service account")
+			} else {
+				log.Printf("Error unmarshaling service account key: %v\n", err)
 			}
+		} else {
+			log.Printf("Error reading credentials file: %v\n", err)
 		}
 	}
 
@@ -56,26 +60,24 @@ func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry 
 		return "", fmt.Errorf("GCS_BUCKET_NAME is not configured")
 	}
 
-	// If the client is sending Content-Type (as seen in your logs: image/jpeg),
-	// we MUST include it in the SignedURLOptions or GCS will reject the request
-	// if it sees a Content-Type header that wasn't signed.
-	// However, we need to be careful that the string matches EXACTLY.
-	opts := &storage.SignedURLOptions{
-		Scheme:      storage.SigningSchemeV4,
-		Method:      method,
-		Expires:     time.Now().Add(expiry),
-		ContentType: contentType,
-		// We can also add headers to the signed list if needed, but ContentType is the usual suspect.
+	// Important: To use storage.SignedURL (package-level), we MUST provide
+	// GoogleAccessID and PrivateKey in the options.
+	if s.Creds == nil || s.Creds.ClientEmail == "" || s.Creds.PrivateKey == "" {
+		return "", fmt.Errorf("signing credentials are not properly configured")
 	}
 
-	// Provide explicit credentials for signing if available
-	if s.Creds != nil {
-		opts.GoogleAccessID = s.Creds.ClientEmail
-		opts.PrivateKey = []byte(s.Creds.PrivateKey)
+	opts := &storage.SignedURLOptions{
+		Scheme:         storage.SigningSchemeV4,
+		Method:         method,
+		Expires:        time.Now().Add(expiry),
+		ContentType:    contentType,
+		GoogleAccessID: s.Creds.ClientEmail,
+		PrivateKey:     []byte(s.Creds.PrivateKey),
 	}
 
 	u, err := storage.SignedURL(s.BucketName, objectName, opts)
 	if err != nil {
+		log.Printf("Failed to generate signed URL: %v\n", err)
 		return "", err
 	}
 	return u, nil
