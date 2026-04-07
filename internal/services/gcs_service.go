@@ -56,11 +56,16 @@ func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry 
 		return "", fmt.Errorf("GCS_BUCKET_NAME is not configured")
 	}
 
+	// If the client is sending Content-Type (as seen in your logs: image/jpeg),
+	// we MUST include it in the SignedURLOptions or GCS will reject the request
+	// if it sees a Content-Type header that wasn't signed.
+	// However, we need to be careful that the string matches EXACTLY.
 	opts := &storage.SignedURLOptions{
 		Scheme:      storage.SigningSchemeV4,
 		Method:      method,
 		Expires:     time.Now().Add(expiry),
 		ContentType: contentType,
+		// We can also add headers to the signed list if needed, but ContentType is the usual suspect.
 	}
 
 	// Provide explicit credentials for signing if available
@@ -69,7 +74,7 @@ func (s *GCSService) GenerateSignedURL(objectName string, method string, expiry 
 		opts.PrivateKey = []byte(s.Creds.PrivateKey)
 	}
 
-	u, err := s.Client.Bucket(s.BucketName).SignedURL(objectName, opts)
+	u, err := storage.SignedURL(s.BucketName, objectName, opts)
 	if err != nil {
 		return "", err
 	}
