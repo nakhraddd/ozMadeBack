@@ -36,6 +36,14 @@ type OrderDto struct {
 	ConfirmCode         *string   `json:"ConfirmCode"`
 }
 
+type CheckoutOptionDto struct {
+	Code           string   `json:"code"`
+	Title          string   `json:"title"`
+	Enabled        bool     `json:"enabled"`
+	RequiresFields []string `json:"requires_fields"`
+	Description    string   `json:"description"`
+}
+
 func CreateOrder(c *gin.Context) {
 	userID := c.GetUint("userID")
 
@@ -68,6 +76,11 @@ func CreateOrder(c *gin.Context) {
 	var seller models.Seller
 	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	if seller.UserID == userID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You cannot order your own product"})
 		return
 	}
 
@@ -104,7 +117,7 @@ func CreateOrder(c *gin.Context) {
 	totalCost := product.Cost * float64(input.Quantity)
 
 	// 10. Create order
-	// Generate confirm code for Pickup/MyDelivery
+	// Generate a handoff code for manual completion flows.
 	confirmCode := ""
 	if input.DeliveryType == models.DeliveryTypePickup || input.DeliveryType == models.DeliveryTypeMyDelivery {
 		confirmCode = strconv.Itoa(1000 + rand.Intn(9000)) // Simple 4 digit code
@@ -131,6 +144,77 @@ func CreateOrder(c *gin.Context) {
 	// Construct DTO
 	dto := mapOrderToDto(order, product, seller)
 	c.JSON(http.StatusCreated, dto)
+}
+
+func GetCheckoutOptions(c *gin.Context) {
+	productIDStr := c.Param("id")
+	productID, err := strconv.ParseUint(productIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	var product models.Product
+	if err := database.DB.First(&product, productID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	var seller models.Seller
+	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	options := []CheckoutOptionDto{
+		{
+			Code:           models.DeliveryTypePickup,
+			Title:          "Pickup",
+			Enabled:        seller.PickupEnabled,
+			RequiresFields: []string{},
+			Description:    buildPickupDescription(seller),
+		},
+		{
+			Code:           models.DeliveryTypeMyDelivery,
+			Title:          "Seller delivery",
+			Enabled:        seller.FreeDeliveryEnabled,
+			RequiresFields: []string{},
+			Description:    buildSellerDeliveryDescription(seller),
+		},
+		{
+			Code:           models.DeliveryTypeIntercity,
+			Title:          "Intercity delivery",
+			Enabled:        seller.IntercityEnabled,
+			RequiresFields: []string{"shipping_address_text"},
+			Description:    "Requires shipping address",
+		},
+	}
+
+	enabledOptions := make([]CheckoutOptionDto, 0, len(options))
+	for _, option := range options {
+		if option.Enabled {
+			enabledOptions = append(enabledOptions, option)
+		}
+	}
+
+	userAddress := ""
+	if userID := c.GetUint("userID"); userID != 0 {
+		var user models.User
+		if err := database.DB.First(&user, userID).Error; err == nil {
+			userAddress = user.Address
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"product_id":          product.ID,
+		"product_title":       product.Title,
+		"product_price":       product.Cost,
+		"seller_id":           seller.ID,
+		"seller_name":         resolveSellerDisplayName(seller),
+		"buyer_saved_address": userAddress,
+		"delivery_options":    enabledOptions,
+		"delivery_summary":    serializeDeliverySettings(seller),
+	})
 }
 
 func GetBuyerOrders(c *gin.Context) {
@@ -208,6 +292,23 @@ func BuyerReceived(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Order marked as received"})
 }
 
+func usesManualCompletion(deliveryType string) bool {
+	return deliveryType == models.DeliveryTypePickup || deliveryType == models.DeliveryTypeMyDelivery
+}
+
+func shouldExposeConfirmCode(order models.Order) bool {
+	if !usesManualCompletion(order.DeliveryType) || order.ConfirmCode == "" {
+		return false
+	}
+
+	switch order.Status {
+	case models.StatusPendingSeller, models.StatusConfirmed, models.StatusReadyOrShipped:
+		return true
+	default:
+		return false
+	}
+}
+
 func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) OrderDto {
 	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
 
@@ -226,13 +327,9 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 		DeliveryType:        order.DeliveryType,
 		ShippingAddressText: order.ShippingAddressText,
 		ShippingComment:     order.ShippingComment,
-		// ConfirmCode:         &order.ConfirmCode, // Only expose if needed or logic dictates
 	}
 
-	// Conditionally expose confirm code to buyer if status is appropriate, usually buyer sees it to give to seller?
-	// Spec says: "Seller completes the order via POST /seller/orders/{id}/complete. Request: { "code": "1234" }"
-	// This implies Buyer has the code.
-	if order.Status == models.StatusConfirmed || order.Status == models.StatusReadyOrShipped {
+	if shouldExposeConfirmCode(order) {
 		dto.ConfirmCode = &order.ConfirmCode
 	}
 
@@ -248,4 +345,51 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 	}
 
 	return dto
+}
+
+func buildPickupDescription(seller models.Seller) string {
+	if !seller.PickupEnabled {
+		return ""
+	}
+
+	switch {
+	case seller.PickupAddress != "" && seller.PickupTime != "":
+		return seller.PickupAddress + ", " + seller.PickupTime
+	case seller.PickupAddress != "":
+		return seller.PickupAddress
+	case seller.PickupTime != "":
+		return seller.PickupTime
+	default:
+		return "Pickup available"
+	}
+}
+
+func buildSellerDeliveryDescription(seller models.Seller) string {
+	if !seller.FreeDeliveryEnabled {
+		return ""
+	}
+
+	switch {
+	case seller.DeliveryCenterAddress != "" && seller.DeliveryRadiusKm > 0:
+		return seller.DeliveryCenterAddress + ", within " + strconv.FormatFloat(seller.DeliveryRadiusKm, 'f', -1, 64) + " km"
+	case seller.DeliveryRadiusKm > 0:
+		return "Within " + strconv.FormatFloat(seller.DeliveryRadiusKm, 'f', -1, 64) + " km"
+	case seller.DeliveryCenterAddress != "":
+		return seller.DeliveryCenterAddress
+	default:
+		return "Seller delivery available"
+	}
+}
+
+func resolveSellerDisplayName(seller models.Seller) string {
+	if seller.User.Name != "" {
+		return seller.User.Name
+	}
+	if seller.User.Email != "" {
+		return seller.User.Email
+	}
+	if seller.User.PhoneNumber != "" {
+		return seller.User.PhoneNumber
+	}
+	return "Unknown"
 }

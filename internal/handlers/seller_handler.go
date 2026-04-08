@@ -660,6 +660,11 @@ func (h *SellerHandler) ReadyOrShipped(c *gin.Context) {
 		return
 	}
 
+	if order.DeliveryType != models.DeliveryTypeIntercity {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "READY_OR_SHIPPED is only used for INTERCITY orders"})
+		return
+	}
+
 	if order.Status != models.StatusConfirmed {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be CONFIRMED to mark as ready/shipped"})
 		return
@@ -696,16 +701,12 @@ func (h *SellerHandler) CompleteOrder(c *gin.Context) {
 	}
 
 	if order.DeliveryType == models.DeliveryTypeIntercity {
-		// Intercity completion is via buyer "Received" action generally, but spec says:
-		// "B. For PICKUP and MY_DELIVERY: Seller completes... Request: { "code": "1234" }"
-		// Assuming Intercity doesn't use this endpoint with code, or if it does, logic differs.
-		// Spec: "A. For INTERCITY: Buyer clicks "Received": READY_OR_SHIPPED -> COMPLETED"
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Intercity orders are completed by buyer confirmation"})
 		return
 	}
 
-	if order.Status != models.StatusReadyOrShipped {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be READY_OR_SHIPPED to complete"})
+	if order.Status != models.StatusConfirmed && order.Status != models.StatusReadyOrShipped {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must be CONFIRMED to complete"})
 		return
 	}
 
