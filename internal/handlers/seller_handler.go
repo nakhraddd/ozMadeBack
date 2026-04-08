@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"ozMadeBack/config"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,31 @@ import (
 
 type SellerHandler struct {
 	GCSService *services.GCSService
+}
+
+type SellerProfileProductDto struct {
+	ID            uint      `json:"id"`
+	SellerID      uint      `json:"seller_id"`
+	Title         string    `json:"title"`
+	Description   string    `json:"description"`
+	Type          string    `json:"type"`
+	Cost          float64   `json:"cost"`
+	Address       string    `json:"address"`
+	WhatsAppLink  string    `json:"whats_app_link"`
+	ViewCount     int64     `json:"view_count"`
+	AverageRating float64   `json:"average_rating"`
+	ImageName     string    `json:"image_name"`
+	Images        []string  `json:"images"`
+	Weight        string    `json:"weight"`
+	HeightCm      string    `json:"height_cm"`
+	WidthCm       string    `json:"width_cm"`
+	DepthCm       string    `json:"depth_cm"`
+	Composition   string    `json:"composition"`
+	YouTubeURL    string    `json:"you_tube_url"`
+	Categories    []string  `json:"categories"`
+	CreatedAt     time.Time `json:"created_at"`
+	SellerName    string    `json:"seller_name"`
+	ShareLink     string    `json:"share_link"`
 }
 
 func NewSellerHandler(gcsService *services.GCSService) *SellerHandler {
@@ -296,19 +322,8 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	var products []models.Product
 	database.DB.Where("seller_id = ?", seller.ID).Find(&products)
 
-	for i := range products {
-		url, _ := services.GenerateSignedURL(products[i].ImageName)
-		products[i].ImageName = url
-		for j, imgName := range products[i].Images {
-			gUrl, _ := services.GenerateSignedURL(imgName)
-			products[i].Images[j] = gUrl
-		}
-	}
-
-	name := seller.User.Name
-	if name == "" {
-		name = seller.User.Email
-	}
+	productDtos := buildSellerProfileProducts(products, seller)
+	name := resolveSellerPublicName(seller)
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":             seller.ID,
@@ -316,8 +331,8 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 		"phone_number":   seller.User.PhoneNumber,
 		"address":        seller.User.Address,
 		"status":         seller.Status,
-		"total_products": len(products),
-		"products":       products,
+		"total_products": len(productDtos),
+		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
 	})
 }
@@ -333,28 +348,97 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 	var products []models.Product
 	database.DB.Where("seller_id = ?", seller.ID).Find(&products)
 
-	for i := range products {
-		url, _ := services.GenerateSignedURL(products[i].ImageName)
-		products[i].ImageName = url
-		for j, imgName := range products[i].Images {
-			gUrl, _ := services.GenerateSignedURL(imgName)
-			products[i].Images[j] = gUrl
-		}
-	}
-
-	name := seller.User.Name
-	if name == "" {
-		name = seller.User.Email
-	}
+	productDtos := buildSellerProfileProducts(products, seller)
+	name := resolveSellerPublicName(seller)
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":             seller.ID,
 		"name":           name,
+		"phone_number":   seller.User.PhoneNumber,
+		"address":        seller.User.Address,
 		"status":         seller.Status,
-		"total_products": len(products),
-		"products":       products,
+		"total_products": len(productDtos),
+		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
 	})
+}
+
+func buildSellerProfileProducts(products []models.Product, seller models.Seller) []SellerProfileProductDto {
+	if len(products) == 0 {
+		return []SellerProfileProductDto{}
+	}
+
+	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade-applink.vercel.app")
+	sellerName := resolveSellerPublicName(seller)
+	response := make([]SellerProfileProductDto, 0, len(products))
+
+	for i := range products {
+		product := products[i]
+
+		if product.ImageName != "" {
+			objectName := product.ImageName
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+				objectName = "products/" + objectName
+			}
+			if url, err := services.GenerateSignedURL(objectName); err == nil {
+				product.ImageName = url
+			}
+		}
+
+		for j, imageName := range product.Images {
+			if imageName == "" {
+				continue
+			}
+
+			objectName := imageName
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+				objectName = "products/" + objectName
+			}
+			if url, err := services.GenerateSignedURL(objectName); err == nil {
+				product.Images[j] = url
+			}
+		}
+
+		response = append(response, SellerProfileProductDto{
+			ID:            product.ID,
+			SellerID:      product.SellerID,
+			Title:         product.Title,
+			Description:   product.Description,
+			Type:          product.Type,
+			Cost:          product.Cost,
+			Address:       product.Address,
+			WhatsAppLink:  product.WhatsAppLink,
+			ViewCount:     product.ViewCount,
+			AverageRating: product.AverageRating,
+			ImageName:     product.ImageName,
+			Images:        product.Images,
+			Weight:        product.Weight,
+			HeightCm:      product.HeightCm,
+			WidthCm:       product.WidthCm,
+			DepthCm:       product.DepthCm,
+			Composition:   product.Composition,
+			YouTubeURL:    product.YouTubeUrl,
+			Categories:    product.Categories,
+			CreatedAt:     product.CreatedAt,
+			SellerName:    sellerName,
+			ShareLink:     appLinkBase + "/products/" + strconv.FormatUint(uint64(product.ID), 10),
+		})
+	}
+
+	return response
+}
+
+func resolveSellerPublicName(seller models.Seller) string {
+	if seller.User.Name != "" {
+		return seller.User.Name
+	}
+	if seller.User.Email != "" {
+		return seller.User.Email
+	}
+	if seller.User.PhoneNumber != "" {
+		return seller.User.PhoneNumber
+	}
+	return "Unknown"
 }
 
 func (h *SellerHandler) UpdateProfile(c *gin.Context) {
