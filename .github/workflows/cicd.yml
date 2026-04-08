@@ -169,6 +169,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/gcp-user/app
+            echo "--- Contents of .env on remote server ---"
+            cat .env
+            echo "-----------------------------------------"
+            echo "Freeing up disk space by pruning old Docker images..."
+            sudo docker image prune -a -f
+            echo "Pulling latest Docker image and restarting services..."
             sudo docker compose pull
             sudo docker compose up -d --force-recreate --remove-orphans
             echo "🚀 Deployment Successful!"
