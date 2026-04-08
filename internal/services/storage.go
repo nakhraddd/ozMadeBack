@@ -23,15 +23,18 @@ func GenerateSignedURL(objectName string) (string, error) {
 		u, err := url.Parse(objectName)
 		if err == nil {
 			// Path is like "/oz-made/products/xxx.jpg"
-			parts := strings.SplitN(u.Path, "/", 3)
-			if len(parts) == 3 {
-				objectName = parts[2] // keep everything after bucket name
+			parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+			if len(parts) >= 2 {
+				// parts[0] is the bucket name, join the rest
+				objectName = strings.Join(parts[1:], "/")
 			}
 		}
 	}
 
-	// Ensure the product image has the "products/" prefix
-	// (only for GET requests – upload URLs are generated separately)
+	// Clean the path
+	objectName = strings.TrimPrefix(objectName, "/")
+
+	// Ensure the product image has the "products/" prefix if it doesn't have another directory prefix
 	if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
 		objectName = "products/" + objectName
 	}
