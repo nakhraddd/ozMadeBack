@@ -126,7 +126,7 @@ func (h *SellerHandler) GetUploadProductPhotoURL(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"uploadUrl": url,
-		"fileUrl":   fileName,
+		"fileUrl":   objectName, // Return the full path including "products/"
 	})
 }
 
