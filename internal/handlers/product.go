@@ -10,6 +10,7 @@ import (
 	productservice "ozMadeBack/internal/service/product"
 	"ozMadeBack/internal/services"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -57,14 +58,22 @@ func GetProducts(c *gin.Context) {
 	for i := range products {
 		// Generate signed URL for main image
 		if products[i].ImageName != "" {
-			url, _ := services.GenerateSignedURL(products[i].ImageName)
+			objectName := products[i].ImageName
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+				objectName = "products/" + objectName
+			}
+			url, _ := services.GenerateSignedURL(objectName)
 			products[i].ImageName = url
 		}
 
 		// Generate signed URLs for gallery images
 		for j, imgName := range products[i].Images {
 			if imgName != "" {
-				gUrl, _ := services.GenerateSignedURL(imgName)
+				objectName := imgName
+				if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+					objectName = "products/" + objectName
+				}
+				gUrl, _ := services.GenerateSignedURL(objectName)
 				products[i].Images[j] = gUrl
 			}
 		}
@@ -225,14 +234,22 @@ func GetProduct(c *gin.Context) {
 
 	// Generate signed URL for main image
 	if product.ImageName != "" {
-		url, _ := services.GenerateSignedURL(product.ImageName)
+		objectName := product.ImageName
+		if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+			objectName = "products/" + objectName
+		}
+		url, _ := services.GenerateSignedURL(objectName)
 		product.ImageName = url
 	}
 
 	// Generate signed URLs for gallery images
 	for j, imgName := range product.Images {
 		if imgName != "" {
-			gUrl, _ := services.GenerateSignedURL(imgName)
+			objectName := imgName
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+				objectName = "products/" + objectName
+			}
+			gUrl, _ := services.GenerateSignedURL(objectName)
 			product.Images[j] = gUrl
 		}
 	}
@@ -350,13 +367,21 @@ func buildProductResponses(products []models.Product) []ProductResponse {
 
 	for i := range products {
 		if products[i].ImageName != "" {
-			url, _ := services.GenerateSignedURL(products[i].ImageName)
+			objectName := products[i].ImageName
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+				objectName = "products/" + objectName
+			}
+			url, _ := services.GenerateSignedURL(objectName)
 			products[i].ImageName = url
 		}
 
 		for j, imgName := range products[i].Images {
 			if imgName != "" {
-				gURL, _ := services.GenerateSignedURL(imgName)
+				objectName := imgName
+				if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+					objectName = "products/" + objectName
+				}
+				gURL, _ := services.GenerateSignedURL(objectName)
 				products[i].Images[j] = gURL
 			}
 		}
