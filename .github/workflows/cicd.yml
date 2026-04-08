@@ -169,10 +169,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/gcp-user/app
-            # Ensure the gcp-user can use docker without sudo
-            newgrp docker || true
-            # Pull the latest image and restart the services
-            docker compose pull
-            docker compose up -d --pull always --force-recreate --remove-orphans
+            sudo docker compose pull
+            sudo docker compose up -d --force-recreate --remove-orphans
             echo "🚀 Deployment Successful!"
-            docker compose ps
+            sudo docker compose ps
+            echo "Currently running image:"
+            sudo docker inspect app-app-1 --format='{{.Config.Image}}'
