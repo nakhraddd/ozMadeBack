@@ -107,8 +107,16 @@ func GetFavorites(c *gin.Context) {
 	database.DB.Where("id IN ?", productIDs).Find(&products)
 
 	for i := range products {
-		url, _ := services.GenerateSignedURL(products[i].ImageName)
-		products[i].ImageName = url
+		if products[i].ImageName != "" {
+			url, _ := services.GenerateSignedURL(products[i].ImageName)
+			products[i].ImageName = url
+		}
+		for j, imgName := range products[i].Images {
+			if imgName != "" {
+				gUrl, _ := services.GenerateSignedURL(imgName)
+				products[i].Images[j] = gUrl
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, products)
