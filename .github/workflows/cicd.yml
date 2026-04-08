@@ -144,11 +144,11 @@ jobs:
 
       - name: Prepare deployment files
         run: |
+          echo "GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}" >> .env
           echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > .env
           echo "IMAGE_TAG=${{ needs.build-and-push-docker.outputs.image_tag }}" >> .env
           echo "DATABASE_URL=postgres://ozmade_user:${{ secrets.DB_PASSWORD }}@${{ needs.provision.outputs.db_ip }}:5432/ozmadeback_db-instance?sslmode=disable" >> .env
           echo "FIREBASE_CREDENTIALS=/home/gcp-user/app/firebase_credentials.json" >> .env
-          echo "GCS_BUCKET_NAME=${{ needs.provision.outputs.gcs_bucket_name }}" >> .env
           echo '${{ secrets.FIREBASE_CREDENTIALS_CONTENT }}' > firebase_credentials.json
 
       - name: Copy deployment files to server
