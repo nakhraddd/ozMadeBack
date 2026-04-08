@@ -56,13 +56,17 @@ func GetProducts(c *gin.Context) {
 	var response []ProductResponse
 	for i := range products {
 		// Generate signed URL for main image
-		url, _ := services.GenerateSignedURL(products[i].ImageName)
-		products[i].ImageName = url
+		if products[i].ImageName != "" {
+			url, _ := services.GenerateSignedURL(products[i].ImageName)
+			products[i].ImageName = url
+		}
 
 		// Generate signed URLs for gallery images
 		for j, imgName := range products[i].Images {
-			gUrl, _ := services.GenerateSignedURL(imgName)
-			products[i].Images[j] = gUrl
+			if imgName != "" {
+				gUrl, _ := services.GenerateSignedURL(imgName)
+				products[i].Images[j] = gUrl
+			}
 		}
 
 		seller, exists := sellerMap[products[i].SellerID]
@@ -220,13 +224,17 @@ func GetProduct(c *gin.Context) {
 	}
 
 	// Generate signed URL for main image
-	url, _ := services.GenerateSignedURL(product.ImageName)
-	product.ImageName = url
+	if product.ImageName != "" {
+		url, _ := services.GenerateSignedURL(product.ImageName)
+		product.ImageName = url
+	}
 
 	// Generate signed URLs for gallery images
 	for j, imgName := range product.Images {
-		gUrl, _ := services.GenerateSignedURL(imgName)
-		product.Images[j] = gUrl
+		if imgName != "" {
+			gUrl, _ := services.GenerateSignedURL(imgName)
+			product.Images[j] = gUrl
+		}
 	}
 
 	// Fetch seller
@@ -341,12 +349,16 @@ func buildProductResponses(products []models.Product) []ProductResponse {
 	response := make([]ProductResponse, 0, len(products))
 
 	for i := range products {
-		url, _ := services.GenerateSignedURL(products[i].ImageName)
-		products[i].ImageName = url
+		if products[i].ImageName != "" {
+			url, _ := services.GenerateSignedURL(products[i].ImageName)
+			products[i].ImageName = url
+		}
 
 		for j, imgName := range products[i].Images {
-			gURL, _ := services.GenerateSignedURL(imgName)
-			products[i].Images[j] = gURL
+			if imgName != "" {
+				gURL, _ := services.GenerateSignedURL(imgName)
+				products[i].Images[j] = gURL
+			}
 		}
 
 		seller, exists := sellerMap[products[i].SellerID]
