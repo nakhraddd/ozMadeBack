@@ -14,6 +14,7 @@ import (
 const (
 	trendingProductsKey = "trending_products"
 	productCachePrefix  = "product:"
+	recommendationKey   = "recommendations:"
 	defaultProductTTL   = 15 * time.Minute
 )
 
@@ -128,8 +129,46 @@ func (r *CacheRepository) ReplaceTrendingScores(ctx context.Context, scores map[
 	return err
 }
 
+func (r *CacheRepository) GetRecommendationIDs(ctx context.Context, cacheKey string) ([]uint, error) {
+	if r == nil || r.client == nil {
+		return []uint{}, nil
+	}
+
+	payload, err := r.client.Get(ctx, recommendationCacheKey(cacheKey)).Bytes()
+	if err == goredis.Nil {
+		return []uint{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var ids []uint
+	if err := json.Unmarshal(payload, &ids); err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
+func (r *CacheRepository) SetRecommendationIDs(ctx context.Context, cacheKey string, ids []uint, ttl time.Duration) error {
+	if r == nil || r.client == nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+
+	return r.client.Set(ctx, recommendationCacheKey(cacheKey), payload, ttl).Err()
+}
+
 func productCacheKey(productID uint) string {
 	return productCachePrefix + redisMember(productID)
+}
+
+func recommendationCacheKey(cacheKey string) string {
+	return recommendationKey + cacheKey
 }
 
 func redisMember(productID uint) string {

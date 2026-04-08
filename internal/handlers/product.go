@@ -8,6 +8,7 @@ import (
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	productservice "ozMadeBack/internal/service/product"
+	recommendationservice "ozMadeBack/internal/service/recommendation"
 	"ozMadeBack/internal/services"
 	"strconv"
 	"strings"
@@ -206,6 +207,30 @@ func SearchProducts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, buildProductResponses(orderedProducts))
+}
+
+func GetRecommendations(c *gin.Context) {
+	userID := c.GetUint("userID")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	products, err := recommendationservice.NewDefaultService().GetRecommendationsForUser(c.Request.Context(), userID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch recommendations"})
+		return
+	}
+
+	c.JSON(http.StatusOK, buildProductResponses(products))
 }
 
 func GetProduct(c *gin.Context) {

@@ -25,6 +25,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	{
 		productRoutes.GET("/search", handlers.SearchProducts)
 		productRoutes.GET("/trending", handlers.GetTrendingProducts)
+		productRoutes.GET("/recommendations", auth.AuthMiddleware(), handlers.GetRecommendations)
 		productRoutes.GET("", handlers.GetProducts)
 		productRoutes.GET("/:id", handlers.GetProduct)
 		productRoutes.GET("/:id/reviews", handlers.GetProductReviews)

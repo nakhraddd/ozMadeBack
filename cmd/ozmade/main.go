@@ -30,6 +30,7 @@ func main() {
 
 	// Start background worker
 	go services.StartTrendingWorker()
+	go services.StartRecommendationWorker()
 
 	// Start WebSocket Hub
 	hub := realtime.GetHub()
