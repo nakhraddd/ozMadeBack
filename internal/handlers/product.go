@@ -80,49 +80,8 @@ func GetProducts(c *gin.Context) {
 		}
 
 		seller, exists := sellerMap[products[i].SellerID]
-		delivery := gin.H{}
-		sellerInfo := gin.H{}
-
-		if exists {
-			// Populate delivery info
-			delivery = gin.H{
-				"pickupEnabled":       seller.PickupEnabled,
-				"pickupTime":          seller.PickupTime,
-				"pickupAddress":       seller.PickupAddress,
-				"freeDeliveryEnabled": seller.FreeDeliveryEnabled,
-				"freeDeliveryText":    "Citywide", // Hardcoded as per example, or could be dynamic
-				"intercityEnabled":    seller.IntercityEnabled,
-				"deliveryCenterLat":   seller.DeliveryCenterLat,
-				"deliveryCenterLng":   seller.DeliveryCenterLng,
-				"deliveryRadiusKm":    seller.DeliveryRadiusKm,
-			}
-
-			// Populate seller info
-			sellerInfo = gin.H{
-				"id":      seller.ID,
-				"name":    seller.User.Email, // Using email as name for now, or add Name field to User/Seller
-				"address": "Almaty",          // Placeholder or needs to be added to Seller model if distinct
-			}
-			products[i].SellerName = seller.User.Email
-		} else {
-			// Default values if seller not found (shouldn't happen ideally)
-			delivery = gin.H{
-				"pickupEnabled":       false,
-				"pickupTime":          nil,
-				"pickupAddress":       nil,
-				"freeDeliveryEnabled": false,
-				"freeDeliveryText":    nil,
-				"intercityEnabled":    false,
-				"deliveryCenterLat":   nil,
-				"deliveryCenterLng":   nil,
-				"deliveryRadiusKm":    nil,
-			}
-			sellerInfo = gin.H{
-				"id":      0,
-				"name":    "Unknown",
-				"address": "Unknown",
-			}
-		}
+		delivery, sellerInfo, sellerName := buildSellerContext(seller, exists)
+		products[i].SellerName = sellerName
 
 		response = append(response, ProductResponse{
 			Product:   products[i],
@@ -281,47 +240,11 @@ func GetProduct(c *gin.Context) {
 
 	// Fetch seller
 	var seller models.Seller
-	delivery := gin.H{}
-	sellerInfo := gin.H{}
+	delivery := emptyDelivery()
+	sellerInfo := emptySellerInfo()
 
 	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err == nil {
-		product.SellerName = seller.User.Email
-
-		delivery = gin.H{
-			"pickupEnabled":       seller.PickupEnabled,
-			"pickupTime":          seller.PickupTime,
-			"pickupAddress":       seller.PickupAddress,
-			"freeDeliveryEnabled": seller.FreeDeliveryEnabled,
-			"freeDeliveryText":    "Citywide",
-			"intercityEnabled":    seller.IntercityEnabled,
-			"deliveryCenterLat":   seller.DeliveryCenterLat,
-			"deliveryCenterLng":   seller.DeliveryCenterLng,
-			"deliveryRadiusKm":    seller.DeliveryRadiusKm,
-		}
-
-		sellerInfo = gin.H{
-			"id":      seller.ID,
-			"name":    seller.User.Email,
-			"address": "Almaty",
-		}
-	} else {
-		// Default empty delivery/seller if not found
-		delivery = gin.H{
-			"pickupEnabled":       false,
-			"pickupTime":          nil,
-			"pickupAddress":       nil,
-			"freeDeliveryEnabled": false,
-			"freeDeliveryText":    nil,
-			"intercityEnabled":    false,
-			"deliveryCenterLat":   nil,
-			"deliveryCenterLng":   nil,
-			"deliveryRadiusKm":    nil,
-		}
-		sellerInfo = gin.H{
-			"id":      0,
-			"name":    "Unknown",
-			"address": "Unknown",
-		}
+		delivery, sellerInfo, product.SellerName = buildSellerContext(seller, true)
 	}
 
 	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade-applink.vercel.app")
@@ -412,45 +335,8 @@ func buildProductResponses(products []models.Product) []ProductResponse {
 		}
 
 		seller, exists := sellerMap[products[i].SellerID]
-		delivery := gin.H{}
-		sellerInfo := gin.H{}
-
-		if exists {
-			products[i].SellerName = seller.User.Email
-			delivery = gin.H{
-				"pickupEnabled":       seller.PickupEnabled,
-				"pickupTime":          seller.PickupTime,
-				"pickupAddress":       seller.PickupAddress,
-				"freeDeliveryEnabled": seller.FreeDeliveryEnabled,
-				"freeDeliveryText":    "Citywide",
-				"intercityEnabled":    seller.IntercityEnabled,
-				"deliveryCenterLat":   seller.DeliveryCenterLat,
-				"deliveryCenterLng":   seller.DeliveryCenterLng,
-				"deliveryRadiusKm":    seller.DeliveryRadiusKm,
-			}
-			sellerInfo = gin.H{
-				"id":      seller.ID,
-				"name":    seller.User.Email,
-				"address": "Almaty",
-			}
-		} else {
-			delivery = gin.H{
-				"pickupEnabled":       false,
-				"pickupTime":          nil,
-				"pickupAddress":       nil,
-				"freeDeliveryEnabled": false,
-				"freeDeliveryText":    nil,
-				"intercityEnabled":    false,
-				"deliveryCenterLat":   nil,
-				"deliveryCenterLng":   nil,
-				"deliveryRadiusKm":    nil,
-			}
-			sellerInfo = gin.H{
-				"id":      0,
-				"name":    "Unknown",
-				"address": "Unknown",
-			}
-		}
+		delivery, sellerInfo, sellerName := buildSellerContext(seller, exists)
+		products[i].SellerName = sellerName
 
 		response = append(response, ProductResponse{
 			Product:   products[i],
@@ -461,4 +347,106 @@ func buildProductResponses(products []models.Product) []ProductResponse {
 	}
 
 	return response
+}
+
+func buildSellerContext(seller models.Seller, exists bool) (gin.H, gin.H, string) {
+	if !exists {
+		return emptyDelivery(), emptySellerInfo(), "Unknown"
+	}
+
+	sellerName := seller.User.Name
+	if sellerName == "" {
+		sellerName = seller.User.Email
+	}
+	if sellerName == "" {
+		sellerName = seller.User.PhoneNumber
+	}
+	if sellerName == "" {
+		sellerName = "Unknown"
+	}
+
+	address := seller.User.Address
+	if address == "" {
+		address = seller.DeliveryCenterAddress
+	}
+	if address == "" {
+		address = seller.PickupAddress
+	}
+
+	delivery := gin.H{
+		"pickupEnabled":         seller.PickupEnabled,
+		"pickupTime":            seller.PickupTime,
+		"pickupAddress":         seller.PickupAddress,
+		"freeDeliveryEnabled":   seller.FreeDeliveryEnabled,
+		"freeDeliveryText":      buildFreeDeliveryText(seller),
+		"intercityEnabled":      seller.IntercityEnabled,
+		"deliveryCenterLat":     seller.DeliveryCenterLat,
+		"deliveryCenterLng":     seller.DeliveryCenterLng,
+		"deliveryRadiusKm":      seller.DeliveryRadiusKm,
+		"deliveryCenterAddress": seller.DeliveryCenterAddress,
+	}
+
+	sellerInfo := gin.H{
+		"id":                    seller.ID,
+		"name":                  sellerName,
+		"address":               address,
+		"phone_number":          seller.User.PhoneNumber,
+		"is_seller":             seller.User.IsSeller,
+		"status":                seller.Status,
+		"delivery_center_lat":   seller.DeliveryCenterLat,
+		"delivery_center_lng":   seller.DeliveryCenterLng,
+		"delivery_radius_km":    seller.DeliveryRadiusKm,
+		"delivery_center_addr":  seller.DeliveryCenterAddress,
+		"pickup_enabled":        seller.PickupEnabled,
+		"free_delivery_enabled": seller.FreeDeliveryEnabled,
+		"intercity_enabled":     seller.IntercityEnabled,
+	}
+
+	return delivery, sellerInfo, sellerName
+}
+
+func emptyDelivery() gin.H {
+	return gin.H{
+		"pickupEnabled":         false,
+		"pickupTime":            nil,
+		"pickupAddress":         nil,
+		"freeDeliveryEnabled":   false,
+		"freeDeliveryText":      nil,
+		"intercityEnabled":      false,
+		"deliveryCenterLat":     nil,
+		"deliveryCenterLng":     nil,
+		"deliveryRadiusKm":      nil,
+		"deliveryCenterAddress": nil,
+	}
+}
+
+func emptySellerInfo() gin.H {
+	return gin.H{
+		"id":                    0,
+		"name":                  "Unknown",
+		"address":               "",
+		"phone_number":          "",
+		"is_seller":             false,
+		"status":                "",
+		"delivery_center_lat":   nil,
+		"delivery_center_lng":   nil,
+		"delivery_radius_km":    nil,
+		"delivery_center_addr":  "",
+		"pickup_enabled":        false,
+		"free_delivery_enabled": false,
+		"intercity_enabled":     false,
+	}
+}
+
+func buildFreeDeliveryText(seller models.Seller) string {
+	if !seller.FreeDeliveryEnabled {
+		return ""
+	}
+	if seller.DeliveryRadiusKm > 0 {
+		return fmt.Sprintf("Within %.0f km", seller.DeliveryRadiusKm)
+	}
+	if seller.DeliveryCenterAddress != "" {
+		return seller.DeliveryCenterAddress
+	}
+	return "Available"
 }

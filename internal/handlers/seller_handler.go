@@ -313,6 +313,8 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":             seller.ID,
 		"name":           name,
+		"phone_number":   seller.User.PhoneNumber,
+		"address":        seller.User.Address,
 		"status":         seller.Status,
 		"total_products": len(products),
 		"products":       products,
