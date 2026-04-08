@@ -58,6 +58,18 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
+	// Reset deleted flags if a new message is sent
+	updates := make(map[string]interface{})
+	if chat.DeletedByBuyer {
+		updates["deleted_by_buyer"] = false
+	}
+	if chat.DeletedBySeller {
+		updates["deleted_by_seller"] = false
+	}
+	if len(updates) > 0 {
+		database.DB.Model(&chat).Updates(updates)
+	}
+
 	message := models.Message{
 		ChatID:     chat.ID,
 		SenderID:   userID,
@@ -143,10 +155,20 @@ func InitiateChat(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create chat"})
 			return
 		}
+	} else {
+		// If chat was previously deleted by the buyer (who is initiating), reset it
+		if chat.DeletedByBuyer {
+			database.DB.Model(&chat).Update("deleted_by_buyer", false)
+		}
 	}
 
 	// 4. Create Message if content provided
 	if input.Content != "" {
+		// Reset seller deleted flag if they are receiving a message
+		if chat.DeletedBySeller {
+			database.DB.Model(&chat).Update("deleted_by_seller", false)
+		}
+
 		message := models.Message{
 			ChatID:     chat.ID,
 			SenderID:   userID,
@@ -198,10 +220,11 @@ func GetChats(c *gin.Context) {
 	}
 
 	var chats []models.Chat
-	// Fetch chats where user is buyer OR seller
-	query := database.DB.Where("buyer_id = ?", userID)
+	// Fetch chats where user is buyer and NOT deleted by buyer
+	// OR user is seller and NOT deleted by seller
+	query := database.DB.Where("(buyer_id = ? AND deleted_by_buyer = false)", userID)
 	if sellerID != 0 {
-		query = query.Or("seller_id = ?", sellerID)
+		query = query.Or("(seller_id = ? AND deleted_by_seller = false)", sellerID)
 	}
 
 	if err := query.Find(&chats).Error; err != nil {
@@ -236,18 +259,22 @@ func GetChatMessages(c *gin.Context) {
 	// Check participation
 	isParticipant := false
 	if chat.BuyerID == userID {
-		isParticipant = true
+		if !chat.DeletedByBuyer {
+			isParticipant = true
+		}
 	} else {
 		var seller models.Seller
 		if err := database.DB.Where("id = ?", chat.SellerID).First(&seller).Error; err == nil {
 			if seller.UserID == userID {
-				isParticipant = true
+				if !chat.DeletedBySeller {
+					isParticipant = true
+				}
 			}
 		}
 	}
 
 	if !isParticipant {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized or chat deleted"})
 		return
 	}
 
@@ -258,4 +285,40 @@ func GetChatMessages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, messages)
+}
+
+func DeleteChat(c *gin.Context) {
+	userID := c.GetUint("userID")
+	chatID := c.Param("chat_id")
+
+	var chat models.Chat
+	if err := database.DB.First(&chat, chatID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+
+	// Determine if user is buyer or seller
+	if chat.BuyerID == userID {
+		chat.DeletedByBuyer = true
+	} else {
+		var seller models.Seller
+		if err := database.DB.Where("id = ?", chat.SellerID).First(&seller).Error; err == nil {
+			if seller.UserID == userID {
+				chat.DeletedBySeller = true
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+				return
+			}
+		} else {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+			return
+		}
+	}
+
+	if err := database.DB.Save(&chat).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete chat"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chat deleted"})
 }
