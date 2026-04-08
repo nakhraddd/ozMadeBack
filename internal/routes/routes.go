@@ -13,6 +13,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	r.GET("/ads", handlers.GetAds)
 
 	r.GET("/sellers/:id", sellerHandler.GetSellerProfile)
+	r.GET("/sellers/:id/reviews", handlers.GetSellerReviews)
 
 	authRoutes := r.Group("/auth")
 	authRoutes.Use(auth.AuthMiddleware())
@@ -26,6 +27,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		productRoutes.GET("/trending", handlers.GetTrendingProducts)
 		productRoutes.GET("", handlers.GetProducts)
 		productRoutes.GET("/:id", handlers.GetProduct)
+		productRoutes.GET("/:id/reviews", handlers.GetProductReviews)
 		productRoutes.POST("/:id/view", handlers.ViewProduct)
 
 		productRoutes.Use(auth.AuthMiddleware())

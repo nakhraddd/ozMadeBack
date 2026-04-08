@@ -5,12 +5,200 @@ import (
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+func GetProductReviews(c *gin.Context) {
+	productIDStr := c.Param("id")
+	productID, err := strconv.ParseUint(productIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	var product models.Product
+	if err := database.DB.First(&product, productID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	var comments []models.Comment
+	database.DB.Where("product_id = ?", productID).Order("created_at desc").Find(&comments)
+
+	var userIDs []uint
+	for _, comment := range comments {
+		userIDs = append(userIDs, comment.UserID)
+	}
+
+	userMap := make(map[uint]models.User)
+	if len(userIDs) > 0 {
+		var users []models.User
+		database.DB.Where("id IN ?", userIDs).Find(&users)
+		for _, u := range users {
+			userMap[u.ID] = u
+		}
+	}
+
+	type ReviewDto struct {
+		ID        uint      `json:"id"`
+		UserName  string    `json:"user_name"`
+		Rating    float64   `json:"rating"`
+		CreatedAt time.Time `json:"created_at"`
+		Text      string    `json:"text"`
+	}
+
+	var reviewDtos []ReviewDto
+	for _, comment := range comments {
+		name := "Anonymous"
+		if user, exists := userMap[comment.UserID]; exists {
+			name = user.Name
+			if name == "" {
+				name = user.Email
+			}
+		}
+
+		reviewDtos = append(reviewDtos, ReviewDto{
+			ID:        comment.ID,
+			UserName:  name,
+			Rating:    comment.Rating,
+			CreatedAt: comment.CreatedAt,
+			Text:      comment.Text,
+		})
+	}
+
+	var reviewsCount int64
+	database.DB.Model(&models.Comment{}).Where("product_id = ? AND text != ''", productID).Count(&reviewsCount)
+
+	var ratingsCount int64
+	database.DB.Model(&models.Comment{}).Where("product_id = ?", productID).Count(&ratingsCount)
+
+	c.JSON(http.StatusOK, gin.H{
+		"summary": gin.H{
+			"product_id":     productID,
+			"average_rating": product.AverageRating,
+			"ratings_count":  ratingsCount,
+			"reviews_count":  reviewsCount,
+		},
+		"reviews": reviewDtos,
+	})
+}
+
+func GetSellerReviews(c *gin.Context) {
+	sellerIDStr := c.Param("id")
+	sellerID, err := strconv.ParseUint(sellerIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid seller ID"})
+		return
+	}
+
+	var seller models.Seller
+	if err := database.DB.Preload("User").First(&seller, sellerID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	var productIDs []uint
+	database.DB.Model(&models.Product{}).Where("seller_id = ?", sellerID).Pluck("id", &productIDs)
+
+	var comments []models.Comment
+	if len(productIDs) > 0 {
+		database.DB.Where("product_id IN ?", productIDs).Order("created_at desc").Find(&comments)
+	}
+
+	var userIDs []uint
+	var commentProductIDs []uint
+	for _, comment := range comments {
+		userIDs = append(userIDs, comment.UserID)
+		commentProductIDs = append(commentProductIDs, comment.ProductID)
+	}
+
+	userMap := make(map[uint]models.User)
+	if len(userIDs) > 0 {
+		var users []models.User
+		database.DB.Where("id IN ?", userIDs).Find(&users)
+		for _, u := range users {
+			userMap[u.ID] = u
+		}
+	}
+
+	productMap := make(map[uint]models.Product)
+	if len(commentProductIDs) > 0 {
+		var products []models.Product
+		database.DB.Where("id IN ?", commentProductIDs).Find(&products)
+		for _, p := range products {
+			productMap[p.ID] = p
+		}
+	}
+
+	type SellerReviewDto struct {
+		ID           uint      `json:"id"`
+		UserName     string    `json:"user_name"`
+		ProductID    uint      `json:"product_id"`
+		ProductTitle string    `json:"product_title"`
+		Rating       float64   `json:"rating"`
+		CreatedAt    time.Time `json:"created_at"`
+		Text         string    `json:"text"`
+	}
+
+	var reviewDtos []SellerReviewDto
+	var totalRating float64
+	for _, comment := range comments {
+		totalRating += comment.Rating
+		name := "Anonymous"
+		if user, exists := userMap[comment.UserID]; exists {
+			name = user.Name
+			if name == "" {
+				name = user.Email
+			}
+		}
+
+		title := "Unknown Product"
+		if p, exists := productMap[comment.ProductID]; exists {
+			title = p.Title
+		}
+
+		reviewDtos = append(reviewDtos, SellerReviewDto{
+			ID:           comment.ID,
+			UserName:     name,
+			ProductID:    comment.ProductID,
+			ProductTitle: title,
+			Rating:       comment.Rating,
+			CreatedAt:    comment.CreatedAt,
+			Text:         comment.Text,
+		})
+	}
+
+	avgRating := 0.0
+	if len(comments) > 0 {
+		avgRating = totalRating / float64(len(comments))
+	}
+
+	var reviewsWithTextCount int64
+	if len(productIDs) > 0 {
+		database.DB.Model(&models.Comment{}).Where("product_id IN ? AND text != ''", productIDs).Count(&reviewsWithTextCount)
+	}
+
+	sellerName := seller.User.Name
+	if sellerName == "" {
+		sellerName = seller.User.Email
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"header": gin.H{
+			"seller_id":      sellerID,
+			"seller_name":    sellerName,
+			"reviews_count":  reviewsWithTextCount,
+			"average_rating": avgRating,
+			"ratings_count":  len(comments),
+		},
+		"reviews": reviewDtos,
+	})
+}
+
 func PostComment(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID := c.GetUint("userID")
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
@@ -19,8 +207,8 @@ func PostComment(c *gin.Context) {
 	}
 
 	var input struct {
-		Rating int    `json:"rating"`
-		Text   string `json:"text"`
+		Rating float64 `json:"rating"`
+		Text   string  `json:"text"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -28,12 +216,15 @@ func PostComment(c *gin.Context) {
 	}
 
 	comment := models.Comment{
-		UserID:    userID.(uint),
+		UserID:    userID,
 		ProductID: uint(productID),
-		Rating:    float64(input.Rating),
+		Rating:    input.Rating,
 		Text:      input.Text,
 	}
-	database.DB.Create(&comment)
+	if err := database.DB.Create(&comment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to post comment"})
+		return
+	}
 
 	go updateAverageRating(uint(productID))
 
@@ -41,7 +232,7 @@ func PostComment(c *gin.Context) {
 }
 
 func ReportProduct(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID := c.GetUint("userID")
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
@@ -58,7 +249,7 @@ func ReportProduct(c *gin.Context) {
 	}
 
 	report := models.Report{
-		UserID:    userID.(uint),
+		UserID:    userID,
 		ProductID: uint(productID),
 		Reason:    input.Reason,
 	}
@@ -81,8 +272,5 @@ func updateAverageRating(productID uint) {
 		avgRating = totalRating / float64(len(comments))
 	}
 
-	var product models.Product
-	database.DB.First(&product, productID)
-	product.AverageRating = avgRating
-	database.DB.Save(&product)
+	database.DB.Model(&models.Product{}).Where("id = ?", productID).Update("average_rating", avgRating)
 }
