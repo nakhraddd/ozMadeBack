@@ -293,8 +293,17 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	var productCount int64
-	database.DB.Model(&models.Product{}).Where("seller_id = ?", seller.ID).Count(&productCount)
+	var products []models.Product
+	database.DB.Where("seller_id = ?", seller.ID).Find(&products)
+
+	for i := range products {
+		url, _ := services.GenerateSignedURL(products[i].ImageName)
+		products[i].ImageName = url
+		for j, imgName := range products[i].Images {
+			gUrl, _ := services.GenerateSignedURL(imgName)
+			products[i].Images[j] = gUrl
+		}
+	}
 
 	name := seller.User.Name
 	if name == "" {
@@ -302,9 +311,47 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"id":             seller.ID,
 		"name":           name,
 		"status":         seller.Status,
-		"total_products": productCount,
+		"total_products": len(products),
+		"products":       products,
+		"delivery":       serializeDeliverySettings(seller),
+	})
+}
+
+func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
+	id := c.Param("id")
+	var seller models.Seller
+	if err := database.DB.Preload("User").First(&seller, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	var products []models.Product
+	database.DB.Where("seller_id = ?", seller.ID).Find(&products)
+
+	for i := range products {
+		url, _ := services.GenerateSignedURL(products[i].ImageName)
+		products[i].ImageName = url
+		for j, imgName := range products[i].Images {
+			gUrl, _ := services.GenerateSignedURL(imgName)
+			products[i].Images[j] = gUrl
+		}
+	}
+
+	name := seller.User.Name
+	if name == "" {
+		name = seller.User.Email
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":             seller.ID,
+		"name":           name,
+		"status":         seller.Status,
+		"total_products": len(products),
+		"products":       products,
+		"delivery":       serializeDeliverySettings(seller),
 	})
 }
 

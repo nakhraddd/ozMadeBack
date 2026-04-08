@@ -64,7 +64,7 @@ func main() {
 	// WebSocket route
 	r.GET("/ws", realtime.HandleWebSocket)
 
-	routes.SetupRoutes(r)
+	routes.SetupRoutes(r, sellerHandler)
 	routes.SellerRoutes(r, sellerHandler, auth.Client)
 
 	r.Run("0.0.0.0:8080")

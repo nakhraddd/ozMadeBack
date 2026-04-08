@@ -7,10 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine) {
+func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	// Public routes
 	r.GET("/categories", handlers.GetCategories)
 	r.GET("/ads", handlers.GetAds)
+
+	r.GET("/sellers/:id", sellerHandler.GetSellerProfile)
 
 	authRoutes := r.Group("/auth")
 	authRoutes.Use(auth.AuthMiddleware())

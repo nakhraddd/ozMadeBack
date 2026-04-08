@@ -1,3 +1,0 @@
-package auth
-
-// Auth service
