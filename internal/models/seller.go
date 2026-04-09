@@ -10,14 +10,13 @@ type Seller struct {
 	LastName              string `json:"last_name"`
 	StoreName             string `json:"store_name"`
 	City                  string `json:"city"`
-	Address               string `json:"address"` // Corrected tag to "address"
+	Address               string `json:"address"`
 	Description           string `json:"description"`
-	Categories            string `json:"categories"` // Comma-separated string for simplicity
+	Categories            string `json:"categories"`
 	PhotoURL              string `json:"photo_url"`
 	Status                string `gorm:"default:'pending'"`
 	IDCard                string
 	Products              []Product `gorm:"foreignKey:SellerID"`
-	Comments              []Comment `gorm:"foreignKey:SellerID"`
 	OrdersCount           int       `json:"orders_count" gorm:"default:0"`
 	AverageRating         float64   `json:"average_rating" gorm:"default:0"`
 	RatingsCount          int       `json:"ratings_count" gorm:"default:0"`
