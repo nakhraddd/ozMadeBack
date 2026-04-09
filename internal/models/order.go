@@ -32,6 +32,8 @@ type Order struct {
 	CreatedAt           time.Time `json:"created_at"`
 	DeliveryType        string    `json:"delivery_type"` // PICKUP, MY_DELIVERY, INTERCITY
 	ShippingAddressText *string   `json:"shipping_address_text"`
+	ShippingLat         *float64  `json:"shipping_lat"`
+	ShippingLng         *float64  `json:"shipping_lng"`
 	ShippingComment     *string   `json:"shipping_comment"`
 	ConfirmCode         string    `json:"confirm_code"`
 }
