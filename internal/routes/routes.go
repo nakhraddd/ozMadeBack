@@ -13,7 +13,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	r.GET("/ads", handlers.GetAds)
 
 	r.GET("/sellers/:id", sellerHandler.GetSellerProfile)
-	r.GET("/sellers/:id/reviews", handlers.GetSellerReviews)
+	r.GET("/sellers/:id/reviews", sellerHandler.GetSellerQuality) // seller quality metrics and reviews
 
 	authRoutes := r.Group("/auth")
 	authRoutes.Use(auth.AuthMiddleware())
@@ -33,8 +33,10 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		productRoutes.POST("/:id/view", handlers.ViewProduct)
 
 		productRoutes.Use(auth.AuthMiddleware())
-		productRoutes.POST("/:id/comments", handlers.PostComment)
-		productRoutes.POST("/:id/report", handlers.ReportProduct)
+		{
+			productRoutes.POST("/:id/comments", handlers.PostComment) // General comment route
+			productRoutes.POST("/:id/report", handlers.ReportProduct)
+		}
 	}
 
 	userRoutes := r.Group("/profile")

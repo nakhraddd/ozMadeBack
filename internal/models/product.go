@@ -14,7 +14,9 @@ type Product struct {
 	Address       string
 	WhatsAppLink  string
 	ViewCount     int64
-	AverageRating float64
+	AverageRating float64 `json:"average_rating" gorm:"default:0"`
+	RatingsCount  int     `json:"ratings_count" gorm:"default:0"`
+	ReviewsCount  int     `json:"reviews_count" gorm:"default:0"`
 	ImageName     string
 	Images        []string `gorm:"serializer:json"`
 	Weight        string
@@ -25,6 +27,6 @@ type Product struct {
 	YouTubeUrl    string
 	Categories    []string `gorm:"serializer:json"`
 	CreatedAt     time.Time
-	Comments      []Comment
-	SellerName    string `gorm:"-"`
+	Comments      []Comment `gorm:"foreignKey:ProductID"`
+	SellerName    string    `gorm:"-"`
 }

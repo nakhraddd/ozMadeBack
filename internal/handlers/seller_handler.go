@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"ozMadeBack/config"
@@ -43,6 +44,75 @@ type SellerProfileProductDto struct {
 	CreatedAt     time.Time `json:"created_at"`
 	SellerName    string    `json:"seller_name"`
 	ShareLink     string    `json:"share_link"`
+}
+
+// SellerQualityCommentDto matches SellerReviewItemDto from Kotlin
+type SellerQualityCommentDto struct {
+	ID           uint      `json:"id"`
+	UserName     string    `json:"user_name"`
+	ProductID    uint      `json:"product_id"`
+	ProductTitle string    `json:"product_title"`
+	Rating       float64   `json:"rating"`
+	CreatedAt    time.Time `json:"created_at"`
+	Text         string    `json:"text"`
+}
+
+// SellerQualityResponse matches the full seller profile/quality requirements
+type SellerQualityResponse struct {
+	SellerName     string                    `json:"seller_name"`
+	PhotoURL       string                    `json:"photo_url"`
+	FirstName      string                    `json:"first_name"`
+	LastName       string                    `json:"last_name"`
+	StoreName      string                    `json:"store_name"`
+	City           string                    `json:"city"`
+	Address        string                    `json:"address"`
+	Categories     string                    `json:"categories"`
+	Description    string                    `json:"description"`
+	OrdersCount    int                       `json:"orders_count"`
+	DaysWithOzMade int                       `json:"days_with_ozmade"`
+	LevelTitle     string                    `json:"level_title"`
+	LevelProgress  float32                   `json:"level_progress"`
+	LevelHint      string                    `json:"level_hint"`
+	AverageRating  float64                   `json:"average_rating"`
+	RatingsCount   int                       `json:"ratings_count"`
+	ReviewsCount   int                       `json:"reviews_count"`
+	Reviews        []SellerQualityCommentDto `json:"reviews"`
+}
+
+type Level struct {
+	Title    string
+	Progress float32
+	Hint     string
+}
+
+// computeLevel translates the Kotlin logic to Go
+func computeLevel(orders int, rating float64, reviews int, days int) Level {
+	ordersPts := int(math.Min(40, float64(orders*2)))
+	reviewsPts := int(math.Min(30, float64(reviews*3)))
+
+	ratingRaw := math.Max(0.0, rating-3.0) * 10.0
+	ratingPts := int(math.Min(20, ratingRaw))
+
+	daysPts := int(math.Min(10, float64(days/7)))
+
+	score := ordersPts + reviewsPts + ratingPts + daysPts
+
+	// Coerce score to be between 0 and 100
+	s := int(math.Max(0, math.Min(100, float64(score))))
+	progress := float32(s) / 100.0
+
+	switch {
+	case s < 20:
+		return Level{"Новый мастер", progress, "Начни собирать отзывы и выполненные заказы"}
+	case s < 45:
+		return Level{"Надёжный мастер", progress, "Держи рейтинг и увеличивай число заказов"}
+	case s < 70:
+		return Level{"Проверенный мастер", progress, "Ещё немного — и ты в топе"}
+	case s < 90:
+		return Level{"Отличный мастер", progress, "Стабильная работа, высокий рейтинг"}
+	default:
+		return Level{"Топ мастер", progress, "Максимальный уровень доверия покупателей"}
+	}
 }
 
 func NewSellerHandler(gcsService *services.GCSService) *SellerHandler {
@@ -363,6 +433,78 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 	})
 }
 
+// GetSellerQuality handles fetching seller quality information and reviews
+func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
+	sellerIDStr := c.Param("id")
+	sellerID, err := strconv.ParseUint(sellerIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid seller ID"})
+		return
+	}
+
+	var seller models.Seller
+	// Preload User and Comments for the seller
+	if err := database.DB.Preload("User").Preload("Comments.User").Preload("Comments.Product").First(&seller, sellerID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	// Calculate DaysWithOzMade
+	daysWithOzMade := int(time.Since(seller.CreatedAt).Hours() / 24)
+
+	// Compute seller level
+	level := computeLevel(seller.OrdersCount, seller.AverageRating, seller.ReviewsCount, daysWithOzMade)
+
+	// Map reviews to DTO
+	var reviewDtos []SellerQualityCommentDto
+	for _, comment := range seller.Comments {
+		name := comment.User.Name
+		if name == "" {
+			name = comment.User.Email
+		}
+
+		reviewDtos = append(reviewDtos, SellerQualityCommentDto{
+			ID:           comment.ID,
+			UserName:     name,
+			ProductID:    comment.ProductID,
+			ProductTitle: comment.Product.Title,
+			Rating:       comment.Rating,
+			CreatedAt:    comment.CreatedAt,
+			Text:         comment.Text,
+		})
+	}
+
+	// Resolve photo URL
+	photoURL := ""
+	if seller.PhotoURL != "" {
+		photoURL, _ = services.GenerateSignedURL(seller.PhotoURL)
+	}
+
+	// Construct the response (full profile + quality)
+	response := SellerQualityResponse{
+		SellerName:     resolveSellerPublicName(seller),
+		PhotoURL:       photoURL,
+		FirstName:      seller.FirstName,
+		LastName:       seller.LastName,
+		StoreName:      seller.StoreName,
+		City:           seller.City,
+		Address:        seller.Address,
+		Categories:     seller.Categories,
+		Description:    seller.Description,
+		OrdersCount:    seller.OrdersCount,
+		DaysWithOzMade: daysWithOzMade,
+		LevelTitle:     level.Title,
+		LevelProgress:  level.Progress,
+		LevelHint:      level.Hint,
+		AverageRating:  seller.AverageRating,
+		RatingsCount:   seller.RatingsCount,
+		ReviewsCount:   seller.ReviewsCount,
+		Reviews:        reviewDtos,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func buildSellerProfileProducts(products []models.Product, seller models.Seller) []SellerProfileProductDto {
 	if len(products) == 0 {
 		return []SellerProfileProductDto{}
@@ -429,6 +571,12 @@ func buildSellerProfileProducts(products []models.Product, seller models.Seller)
 }
 
 func resolveSellerPublicName(seller models.Seller) string {
+	if seller.StoreName != "" { // Prefer store name if available
+		return seller.StoreName
+	}
+	if seller.FirstName != "" && seller.LastName != "" {
+		return seller.FirstName + " " + seller.LastName
+	}
 	if seller.User.Name != "" {
 		return seller.User.Name
 	}
@@ -449,9 +597,21 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	var seller models.Seller
+	if err := database.DB.Where("user_id = ?", userID).First(&seller).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		return
+	}
+
 	var input struct {
-		Name           string `json:"name"`
-		ProfilePicture string `json:"profile_picture"`
+		FirstName   *string `json:"first_name"`
+		LastName    *string `json:"last_name"`
+		StoreName   *string `json:"store_name"`
+		City        *string `json:"city"`
+		Address     *string `json:"address"`
+		Description *string `json:"description"`
+		Categories  *string `json:"categories"` // Comma-separated string
+		PhotoURL    *string `json:"photo_url"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -459,15 +619,40 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if input.Name != "" {
-		user.Name = input.Name
-		database.DB.Model(&user).Update("name", user.Name)
+	updates := make(map[string]interface{})
+	if input.FirstName != nil {
+		updates["first_name"] = *input.FirstName
+	}
+	if input.LastName != nil {
+		updates["last_name"] = *input.LastName
+	}
+	if input.StoreName != nil {
+		updates["store_name"] = *input.StoreName
+	}
+	if input.City != nil {
+		updates["city"] = *input.City
+	}
+	if input.Address != nil {
+		updates["address"] = *input.Address
+	}
+	if input.Description != nil {
+		updates["description"] = *input.Description
+	}
+	if input.Categories != nil {
+		updates["categories"] = *input.Categories
+	}
+	if input.PhotoURL != nil {
+		updates["photo_url"] = *input.PhotoURL
 	}
 
-	// Logic for profile picture can be added later if needed
-	// For now, let's at least update the name which was requested
+	if len(updates) > 0 {
+		if err := database.DB.Model(&seller).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update seller profile"})
+			return
+		}
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile updated", "name": user.Name})
+	c.JSON(http.StatusOK, gin.H{"message": "Seller profile updated"})
 }
 
 func (h *SellerHandler) GetDelivery(c *gin.Context) {
