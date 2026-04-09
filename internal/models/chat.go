@@ -23,11 +23,21 @@ func (c Chat) ChatIDString() string {
 	return fmt.Sprintf("%d_%d_%d", c.BuyerID, c.SellerID, c.ProductID)
 }
 
+// MarkAllMessagesAsDeletedForUser marks all messages in the chat as deleted for a specific user.
+func (c *Chat) MarkAllMessagesAsDeletedForUser(db *gorm.DB, userID uint, isBuyer bool) error {
+	if isBuyer {
+		return db.Model(&Message{}).Where("chat_id = ?", c.ID).Update("deleted_by_buyer", true).Error
+	}
+	return db.Model(&Message{}).Where("chat_id = ?", c.ID).Update("deleted_by_seller", true).Error
+}
+
 type Message struct {
 	gorm.Model
-	ChatID     uint
-	SenderID   uint
-	SenderRole string
-	Content    string
-	CreatedAt  time.Time
+	ChatID          uint
+	SenderID        uint
+	SenderRole      string
+	Content         string
+	CreatedAt       time.Time
+	DeletedByBuyer  bool `gorm:"default:false" json:"deleted_by_buyer"`
+	DeletedBySeller bool `gorm:"default:false" json:"deleted_by_seller"`
 }

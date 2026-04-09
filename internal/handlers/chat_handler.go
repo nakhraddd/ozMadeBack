@@ -257,29 +257,34 @@ func GetChatMessages(c *gin.Context) {
 	}
 
 	// Check participation
+	isBuyer := false
 	isParticipant := false
 	if chat.BuyerID == userID {
-		if !chat.DeletedByBuyer {
-			isParticipant = true
-		}
+		isBuyer = true
+		isParticipant = true
 	} else {
 		var seller models.Seller
 		if err := database.DB.Where("id = ?", chat.SellerID).First(&seller).Error; err == nil {
 			if seller.UserID == userID {
-				if !chat.DeletedBySeller {
-					isParticipant = true
-				}
+				isParticipant = true
 			}
 		}
 	}
 
 	if !isParticipant {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized or chat deleted"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
 		return
 	}
 
 	var messages []models.Message
-	if err := database.DB.Where("chat_id = ?", chatID).Find(&messages).Error; err != nil {
+	query := database.DB.Where("chat_id = ?", chatID)
+	if isBuyer {
+		query = query.Where("deleted_by_buyer = false")
+	} else {
+		query = query.Where("deleted_by_seller = false")
+	}
+
+	if err := query.Find(&messages).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
 		return
 	}
@@ -297,22 +302,33 @@ func DeleteChat(c *gin.Context) {
 		return
 	}
 
+	isBuyer := false
+	authorized := false
+
 	// Determine if user is buyer or seller
 	if chat.BuyerID == userID {
+		isBuyer = true
 		chat.DeletedByBuyer = true
+		authorized = true
 	} else {
 		var seller models.Seller
 		if err := database.DB.Where("id = ?", chat.SellerID).First(&seller).Error; err == nil {
 			if seller.UserID == userID {
 				chat.DeletedBySeller = true
-			} else {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
-				return
+				authorized = true
 			}
-		} else {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
-			return
 		}
+	}
+
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Mark all messages as deleted for this user
+	if err := chat.MarkAllMessagesAsDeletedForUser(database.DB, userID, isBuyer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to flag messages"})
+		return
 	}
 
 	if err := database.DB.Save(&chat).Error; err != nil {
