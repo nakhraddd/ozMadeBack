@@ -14,5 +14,5 @@ type Comment struct {
 	Product    Product `gorm:"foreignKey:ProductID"`
 	Rating     float64
 	Text       string
-	// CreatedAt is already part of gorm.Model
+	CreatedAt  time.Time
 }

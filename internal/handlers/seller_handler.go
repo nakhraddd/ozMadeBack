@@ -119,6 +119,18 @@ func NewSellerHandler(gcsService *services.GCSService) *SellerHandler {
 	return &SellerHandler{GCSService: gcsService}
 }
 
+// SellerRegistrationRequestDto matches the Kotlin data class for seller registration
+type SellerRegistrationRequestDto struct {
+	FirstName   string   `json:"first_name" binding:"required"`
+	LastName    string   `json:"last_name" binding:"required"`
+	DisplayName string   `json:"display_name" binding:"required"` // Maps to StoreName
+	City        string   `json:"city" binding:"required"`
+	Address     string   `json:"address" binding:"required"`
+	Categories  []string `json:"categories" binding:"required"`
+	About       string   `json:"about"` // Maps to Description
+	IDCardUrl   string   `json:"id_card_url"`
+}
+
 func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 	userID := c.GetUint("userID")
 	var user models.User
@@ -139,16 +151,23 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		return
 	}
 
-	var input struct {
-		Name string `json:"name"`
-	}
-	if err := c.ShouldBindJSON(&input); err == nil && input.Name != "" {
-		user.Name = input.Name
+	var input SellerRegistrationRequestDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	seller := models.Seller{
-		UserID: userID,
-		Status: "pending",
+		UserID:      userID,
+		FirstName:   input.FirstName,
+		LastName:    input.LastName,
+		StoreName:   input.DisplayName,
+		City:        input.City,
+		Address:     input.Address,
+		Description: input.About,
+		Categories:  strings.Join(input.Categories, ","), // Convert slice to comma-separated string
+		IDCard:      input.IDCardUrl,
+		Status:      "pending",
 	}
 
 	tx := database.DB.Begin()
@@ -159,15 +178,11 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		return
 	}
 
-	updates := map[string]interface{}{
+	// Update user status to is_seller and role
+	if err := tx.Model(&user).Updates(map[string]interface{}{
 		"is_seller": true,
 		"role":      "seller",
-	}
-	if user.Name != "" {
-		updates["name"] = user.Name
-	}
-
-	if err := tx.Model(&user).Updates(updates).Error; err != nil {
+	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user status"})
 		return
@@ -175,7 +190,7 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 
 	tx.Commit()
 
-	c.JSON(http.StatusOK, gin.H{"message": "Seller application submitted"})
+	c.JSON(http.StatusOK, gin.H{"message": "Seller application submitted successfully", "seller_id": seller.ID})
 }
 
 func (h *SellerHandler) GetUploadIDURL(c *gin.Context) {
@@ -395,6 +410,16 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	productDtos := buildSellerProfileProducts(products, seller)
 	name := resolveSellerPublicName(seller)
 
+	categories := []string{}
+	if seller.Categories != "" {
+		categories = strings.Split(seller.Categories, ",")
+	}
+
+	photoURL := ""
+	if seller.PhotoURL != "" {
+		photoURL, _ = services.GenerateSignedURL(seller.PhotoURL)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"id":             seller.ID,
 		"name":           name,
@@ -404,6 +429,14 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 		"total_products": len(productDtos),
 		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
+		// Additional fields for editing
+		"first_name":   seller.FirstName,
+		"last_name":    seller.LastName,
+		"display_name": seller.StoreName, // Maps to StoreName
+		"city":         seller.City,
+		"about":        seller.Description, // Maps to Description
+		"categories":   categories,
+		"photo_url":    photoURL,
 	})
 }
 
@@ -583,9 +616,6 @@ func resolveSellerPublicName(seller models.Seller) string {
 	if seller.User.Email != "" {
 		return seller.User.Email
 	}
-	if seller.User.PhoneNumber != "" {
-		return seller.User.PhoneNumber
-	}
 	return "Unknown"
 }
 
@@ -604,14 +634,14 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var input struct {
-		FirstName   *string `json:"first_name"`
-		LastName    *string `json:"last_name"`
-		StoreName   *string `json:"store_name"`
-		City        *string `json:"city"`
-		Address     *string `json:"address"`
-		Description *string `json:"description"`
-		Categories  *string `json:"categories"` // Comma-separated string
-		PhotoURL    *string `json:"photo_url"`
+		FirstName   *string   `json:"first_name"`
+		LastName    *string   `json:"last_name"`
+		StoreName   *string   `json:"store_name"`
+		City        *string   `json:"city"`
+		Address     *string   `json:"address"`
+		Description *string   `json:"description"`
+		Categories  *[]string `json:"categories"` // Slice of strings
+		PhotoURL    *string   `json:"photo_url"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -639,7 +669,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		updates["description"] = *input.Description
 	}
 	if input.Categories != nil {
-		updates["categories"] = *input.Categories
+		updates["categories"] = strings.Join(*input.Categories, ",")
 	}
 	if input.PhotoURL != nil {
 		updates["photo_url"] = *input.PhotoURL
