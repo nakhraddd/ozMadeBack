@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"math"
 	"math/rand"
 	"net/http"
 	"ozMadeBack/internal/database"
@@ -32,6 +33,8 @@ type OrderDto struct {
 	ZoneRadiusKm        *float64  `json:"ZoneRadiusKm"`
 	ZoneCenterAddress   *string   `json:"ZoneCenterAddress"`
 	ShippingAddressText *string   `json:"ShippingAddressText"`
+	ShippingLat         *float64  `json:"ShippingLat"`
+	ShippingLng         *float64  `json:"ShippingLng"`
 	ShippingComment     *string   `json:"ShippingComment"`
 	ConfirmCode         *string   `json:"ConfirmCode"`
 }
@@ -48,11 +51,13 @@ func CreateOrder(c *gin.Context) {
 	userID := c.GetUint("userID")
 
 	var input struct {
-		ProductID           uint    `json:"product_id"`
-		Quantity            int     `json:"quantity"`
-		DeliveryType        string  `json:"delivery_type"`
-		ShippingAddressText *string `json:"shipping_address_text"`
-		ShippingComment     *string `json:"shipping_comment"`
+		ProductID           uint     `json:"product_id"`
+		Quantity            int      `json:"quantity"`
+		DeliveryType        string   `json:"delivery_type"`
+		ShippingAddressText *string  `json:"shipping_address_text"`
+		ShippingLat         *float64 `json:"shipping_lat"`
+		ShippingLng         *float64 `json:"shipping_lng"`
+		ShippingComment     *string  `json:"shipping_comment"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -91,9 +96,36 @@ func CreateOrder(c *gin.Context) {
 		if seller.PickupEnabled {
 			validDelivery = true
 		}
-	case models.DeliveryTypeMyDelivery: // Maps to FreeDeliveryEnabled based on context, or needs explicit mapping. Assuming FreeDeliveryEnabled covers local delivery by seller.
+	case models.DeliveryTypeMyDelivery:
 		if seller.FreeDeliveryEnabled {
 			validDelivery = true
+			if input.ShippingAddressText == nil || *input.ShippingAddressText == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_address_text is required for MY_DELIVERY"})
+				return
+			}
+			if !hasValidCoordinates(input.ShippingLat, input.ShippingLng) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_lat and shipping_lng are required for MY_DELIVERY"})
+				return
+			}
+			if !hasValidCoordinates(&seller.DeliveryCenterLat, &seller.DeliveryCenterLng) || seller.DeliveryRadiusKm <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Seller delivery settings are incomplete"})
+				return
+			}
+
+			distanceKm := calculateDistanceKm(
+				seller.DeliveryCenterLat,
+				seller.DeliveryCenterLng,
+				*input.ShippingLat,
+				*input.ShippingLng,
+			)
+			if distanceKm > seller.DeliveryRadiusKm {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":                "Delivery is not available for this address",
+					"delivery_radius_km":   seller.DeliveryRadiusKm,
+					"distance_to_buyer_km": math.Round(distanceKm*100) / 100,
+				})
+				return
+			}
 		}
 	case models.DeliveryTypeIntercity:
 		if seller.IntercityEnabled {
@@ -132,6 +164,8 @@ func CreateOrder(c *gin.Context) {
 		CreatedAt:           time.Now(),
 		DeliveryType:        input.DeliveryType,
 		ShippingAddressText: input.ShippingAddressText,
+		ShippingLat:         input.ShippingLat,
+		ShippingLng:         input.ShippingLng,
 		ShippingComment:     input.ShippingComment,
 		ConfirmCode:         confirmCode,
 	}
@@ -178,7 +212,7 @@ func GetCheckoutOptions(c *gin.Context) {
 			Code:           models.DeliveryTypeMyDelivery,
 			Title:          "Seller delivery",
 			Enabled:        seller.FreeDeliveryEnabled,
-			RequiresFields: []string{},
+			RequiresFields: []string{"shipping_address_text", "shipping_lat", "shipping_lng"},
 			Description:    buildSellerDeliveryDescription(seller),
 		},
 		{
@@ -309,6 +343,29 @@ func shouldExposeConfirmCode(order models.Order) bool {
 	}
 }
 
+func hasValidCoordinates(lat, lng *float64) bool {
+	return lat != nil && lng != nil
+}
+
+func calculateDistanceKm(lat1, lng1, lat2, lng2 float64) float64 {
+	const earthRadiusKm = 6371.0
+
+	toRadians := func(value float64) float64 {
+		return value * math.Pi / 180
+	}
+
+	lat1Rad := toRadians(lat1)
+	lat2Rad := toRadians(lat2)
+	deltaLat := toRadians(lat2 - lat1)
+	deltaLng := toRadians(lng2 - lng1)
+
+	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(deltaLng/2)*math.Sin(deltaLng/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadiusKm * c
+}
+
 func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) OrderDto {
 	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
 
@@ -326,6 +383,8 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 		SellerName:          seller.User.Email, // Or seller name field
 		DeliveryType:        order.DeliveryType,
 		ShippingAddressText: order.ShippingAddressText,
+		ShippingLat:         order.ShippingLat,
+		ShippingLng:         order.ShippingLng,
 		ShippingComment:     order.ShippingComment,
 	}
 
