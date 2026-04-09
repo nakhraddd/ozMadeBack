@@ -29,6 +29,7 @@ func Migrate() {
 		&models.Message{},
 		&models.Comment{},
 		&models.Order{},
+		&models.Notification{},
 		&models.Favorite{},
 		&models.Report{},
 	)

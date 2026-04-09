@@ -884,6 +884,16 @@ func (h *SellerHandler) ConfirmOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to confirm order"})
 		return
 	}
+
+	orderRecordID := order.ID
+	_ = services.CreateNotification(
+		order.UserID,
+		"Order accepted",
+		"The seller accepted your order.",
+		"buyer_order_confirmed",
+		&orderRecordID,
+		nil,
+	)
 	c.JSON(http.StatusOK, gin.H{"message": "Order confirmed", "status": models.StatusConfirmed})
 }
 
