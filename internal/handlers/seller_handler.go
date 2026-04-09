@@ -476,21 +476,23 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 	}
 
 	var seller models.Seller
-	// Preload User and Comments for the seller
-	if err := database.DB.Preload("User").Preload("Comments.User").Preload("Comments.Product").First(&seller, sellerID).Error; err != nil {
+	if err := database.DB.Preload("User").First(&seller, sellerID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
 		return
 	}
 
-	// Calculate DaysWithOzMade
+	var comments []models.Comment
+	database.DB.Preload("User").Preload("Product").
+		Joins("JOIN products ON products.id = comments.product_id").
+		Where("products.seller_id = ?", sellerID).
+		Find(&comments)
+
 	daysWithOzMade := int(time.Since(seller.CreatedAt).Hours() / 24)
 
-	// Compute seller level
 	level := computeLevel(seller.OrdersCount, seller.AverageRating, seller.ReviewsCount, daysWithOzMade)
 
-	// Map reviews to DTO
 	var reviewDtos []SellerQualityCommentDto
-	for _, comment := range seller.Comments {
+	for _, comment := range comments {
 		name := comment.User.Name
 		if name == "" {
 			name = comment.User.Email
@@ -507,13 +509,11 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 		})
 	}
 
-	// Resolve photo URL
 	photoURL := ""
 	if seller.PhotoURL != "" {
 		photoURL, _ = services.GenerateSignedURL(seller.PhotoURL)
 	}
 
-	// Construct the response (full profile + quality)
 	response := SellerQualityResponse{
 		SellerName:     resolveSellerPublicName(seller),
 		PhotoURL:       photoURL,
