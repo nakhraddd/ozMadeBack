@@ -175,6 +175,24 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
+	orderID := order.ID
+	_ = services.CreateNotification(
+		userID,
+		"Order created",
+		"Your order has been created and is waiting for seller confirmation.",
+		"buyer_order_created",
+		&orderID,
+		nil,
+	)
+	_ = services.CreateNotification(
+		seller.UserID,
+		"New order received",
+		"A buyer has placed a new order for your product.",
+		"seller_new_order",
+		&orderID,
+		nil,
+	)
+
 	// Construct DTO
 	dto := mapOrderToDto(order, product, seller)
 	c.JSON(http.StatusCreated, dto)

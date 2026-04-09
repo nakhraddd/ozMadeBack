@@ -50,6 +50,14 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		userRoutes.GET("/orders", handlers.GetBuyerOrders)
 	}
 
+	notificationRoutes := r.Group("/notifications")
+	notificationRoutes.Use(auth.AuthMiddleware())
+	{
+		notificationRoutes.GET("", handlers.GetNotifications)
+		notificationRoutes.POST("/:id/read", handlers.MarkNotificationRead)
+		notificationRoutes.POST("/read-all", handlers.MarkAllNotificationsRead)
+	}
+
 	orderRoutes := r.Group("/orders")
 	orderRoutes.Use(auth.AuthMiddleware())
 	{
