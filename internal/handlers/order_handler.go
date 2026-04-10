@@ -402,7 +402,7 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 		Quantity:            order.Quantity,
 		TotalCost:           order.TotalCost,
 		SellerID:            seller.ID,
-		SellerName:          seller.User.Email, // Or seller name field
+		SellerName:          seller.User.Name, // Or seller name field
 		DeliveryType:        order.DeliveryType,
 		ShippingAddressText: order.ShippingAddressText,
 		ShippingLat:         order.ShippingLat,
@@ -465,9 +465,6 @@ func buildSellerDeliveryDescription(seller models.Seller) string {
 func resolveSellerDisplayName(seller models.Seller) string {
 	if seller.User.Name != "" {
 		return seller.User.Name
-	}
-	if seller.User.Email != "" {
-		return seller.User.Email
 	}
 	if seller.User.PhoneNumber != "" {
 		return seller.User.PhoneNumber

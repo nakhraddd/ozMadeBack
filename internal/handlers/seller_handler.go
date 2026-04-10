@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
 	"net/http"
 	"ozMadeBack/config"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"ozMadeBack/internal/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type SellerHandler struct {
@@ -241,6 +244,36 @@ func (h *SellerHandler) GetUploadProductPhotoURL(c *gin.Context) {
 	})
 }
 
+func (h *SellerHandler) GetUploadPhotoURL(c *gin.Context) {
+	userID := c.GetUint("userID")
+	fileName := c.Query("file_name")
+	contentType := c.Query("content_type")
+
+	if fileName == "" || contentType == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file_name and content_type are required"})
+		return
+	}
+
+	if h.GCSService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GCS service not initialized"})
+		return
+	}
+
+	ext := filepath.Ext(fileName)
+	objectName := fmt.Sprintf("seller_photos/%d/%s%s", userID, uuid.New().String(), ext)
+
+	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute, contentType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate upload URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"upload_url":  url,
+		"object_name": objectName,
+	})
+}
+
 func (h *SellerHandler) GetProducts(c *gin.Context) {
 	userID := c.GetUint("userID")
 	var seller models.Seller
@@ -417,7 +450,7 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 
 	photoURL := ""
 	if seller.PhotoURL != "" {
-		photoURL, _ = services.GenerateSignedURL(seller.PhotoURL)
+		photoURL, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -454,9 +487,15 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 	productDtos := buildSellerProfileProducts(products, seller)
 	name := resolveSellerPublicName(seller)
 
+	photoURL := ""
+	if seller.PhotoURL != "" {
+		photoURL, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"id":             seller.ID,
 		"name":           name,
+		"photo_url":      photoURL,
 		"phone_number":   seller.User.PhoneNumber,
 		"address":        seller.User.Address,
 		"status":         seller.Status,
@@ -494,9 +533,6 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 	var reviewDtos []SellerQualityCommentDto
 	for _, comment := range comments {
 		name := comment.User.Name
-		if name == "" {
-			name = comment.User.Email
-		}
 
 		reviewDtos = append(reviewDtos, SellerQualityCommentDto{
 			ID:           comment.ID,
@@ -511,7 +547,7 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 
 	photoURL := ""
 	if seller.PhotoURL != "" {
-		photoURL, _ = services.GenerateSignedURL(seller.PhotoURL)
+		photoURL, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
 	}
 
 	response := SellerQualityResponse{
@@ -552,7 +588,7 @@ func buildSellerProfileProducts(products []models.Product, seller models.Seller)
 
 		if product.ImageName != "" {
 			objectName := product.ImageName
-			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") && !strings.HasPrefix(objectName, "seller_photos/") {
 				objectName = "products/" + objectName
 			}
 			if url, err := services.GenerateSignedURL(objectName); err == nil {
@@ -566,7 +602,7 @@ func buildSellerProfileProducts(products []models.Product, seller models.Seller)
 			}
 
 			objectName := imageName
-			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") && !strings.HasPrefix(objectName, "seller_photos/") {
 				objectName = "products/" + objectName
 			}
 			if url, err := services.GenerateSignedURL(objectName); err == nil {
@@ -612,9 +648,6 @@ func resolveSellerPublicName(seller models.Seller) string {
 	}
 	if seller.User.Name != "" {
 		return seller.User.Name
-	}
-	if seller.User.Email != "" {
-		return seller.User.Email
 	}
 	return "Unknown"
 }

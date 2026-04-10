@@ -14,6 +14,7 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 	sellerGroup.POST("/register", sellerHandler.RegisterSeller)
 	sellerGroup.GET("/upload-id-url", sellerHandler.GetUploadIDURL)
 	sellerGroup.GET("/upload-product-photo-url", sellerHandler.GetUploadProductPhotoURL)
+	sellerGroup.GET("/upload-photo-url", sellerHandler.GetUploadPhotoURL)
 
 	sellerGroup.Use(middleware.SellerMiddleware())
 	{
