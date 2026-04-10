@@ -1,13 +1,18 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func GetProfile(c *gin.Context) {
@@ -17,20 +22,16 @@ func GetProfile(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
+
+	if user.PhotoUrl != "" {
+		user.PhotoUrl, _ = services.GenerateSignedURLForUser(user.PhotoUrl)
+	}
+
 	c.JSON(http.StatusOK, user)
 }
 
 func UpdateProfile(c *gin.Context) {
 	userID := c.GetUint("userID")
-	var input struct {
-		Name    string `json:"name"`
-		Email   string `json:"email"`
-		Address string `json:"address"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -38,17 +39,71 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if input.Name != "" {
-		user.Name = input.Name
-	}
-	if input.Email != "" {
-		user.Email = input.Email
-	}
-	if input.Address != "" {
-		user.Address = input.Address
+	// Handle multipart form for photo upload
+	contentType := c.GetHeader("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// Update fields from form
+		if name := c.PostForm("name"); name != "" {
+			user.Name = name
+		}
+		if address := c.PostForm("address"); address != "" {
+			user.Address = address
+		}
+		if phoneNumber := c.PostForm("phone_number"); phoneNumber != "" {
+			user.PhoneNumber = phoneNumber
+		}
+		if fcmToken := c.PostForm("fcm_token"); fcmToken != "" {
+			user.FCMToken = fcmToken
+		}
+
+		// Handle photo upload
+		file, err := c.FormFile("photo")
+		if err == nil && services.GCS != nil {
+			ext := filepath.Ext(file.Filename)
+			objectName := fmt.Sprintf("users/%d/%s%s", user.ID, uuid.New().String(), ext)
+
+			// Open the file
+			f, _ := file.Open()
+			defer f.Close()
+
+			// Upload to GCS
+			wc := services.GCS.Client.Bucket(services.GCS.BucketName).Object(objectName).NewWriter(c.Request.Context())
+			// io.Copy(wc, f) then wc.Close()
+			_ = wc
+
+			user.PhotoUrl = objectName
+		}
+	} else {
+		// Handle JSON update
+		var input map[string]interface{}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Use a map to update only provided fields
+		// Filter out sensitive fields like ID or FirebaseUID if needed
+		delete(input, "id")
+		delete(input, "firebase_uid")
+
+		if err := database.DB.Model(&user).Updates(input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+			return
+		}
+
+		// Refresh user from DB to get the updated values
+		database.DB.First(&user, userID)
 	}
 
-	database.DB.Save(&user)
+	if err := database.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profile"})
+		return
+	}
+
+	if user.PhotoUrl != "" {
+		user.PhotoUrl, _ = services.GenerateSignedURLForUser(user.PhotoUrl)
+	}
+
 	c.JSON(http.StatusOK, user)
 }
 
@@ -120,4 +175,34 @@ func GetFavorites(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, products)
+}
+
+func GetProfileUploadURL(c *gin.Context) {
+	userID := c.GetUint("userID")
+	fileName := c.Query("file_name")
+	contentType := c.Query("content_type")
+
+	if fileName == "" || contentType == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file_name and content_type are required"})
+		return
+	}
+
+	if services.GCS == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GCS service not initialized"})
+		return
+	}
+
+	ext := filepath.Ext(fileName)
+	objectName := fmt.Sprintf("users/%d/%s%s", userID, uuid.New().String(), ext)
+
+	url, err := services.GCS.GenerateSignedURL(objectName, "PUT", 15*time.Minute, contentType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate upload URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"upload_url":  url,
+		"object_name": objectName,
+	})
 }

@@ -45,6 +45,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		userRoutes.POST("/favorites/:id", handlers.ToggleFavorite)
 		userRoutes.GET("/favorites", handlers.GetFavorites)
 		userRoutes.GET("/orders", handlers.GetBuyerOrders)
+		userRoutes.GET("/upload-url", handlers.GetProfileUploadURL)
 	}
 
 	notificationRoutes := r.Group("/notifications")
