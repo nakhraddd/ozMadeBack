@@ -17,6 +17,7 @@ type Product struct {
 	AverageRating float64 `json:"average_rating" gorm:"default:0"`
 	RatingsCount  int     `json:"ratings_count" gorm:"default:0"`
 	ReviewsCount  int     `json:"reviews_count" gorm:"default:0"`
+	OrdersCount   int     `json:"orders_count" gorm:"default:0"`
 	ImageName     string
 	Images        []string `gorm:"serializer:json"`
 	Weight        string

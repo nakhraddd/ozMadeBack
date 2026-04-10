@@ -86,6 +86,24 @@ func (s *Service) IncrementView(ctx context.Context, productID uint) error {
 	return nil
 }
 
+func (s *Service) IncrementOrderCount(ctx context.Context, productID uint) error {
+	tx := s.db.Model(&models.Product{}).
+		Where("id = ?", productID).
+		UpdateColumn("orders_count", gorm.Expr("orders_count + ?", 1))
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	if s.cache != nil {
+		_ = s.cache.DeleteProduct(ctx, productID)
+	}
+
+	return nil
+}
+
 func (s *Service) GetTrendingProducts(ctx context.Context, limit int) ([]models.Product, error) {
 	if limit <= 0 {
 		limit = defaultTrendingLimit

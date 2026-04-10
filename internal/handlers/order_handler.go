@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
+	productservice "ozMadeBack/internal/service/product"
 	"ozMadeBack/internal/services"
 	"strconv"
 	"time"
@@ -174,6 +175,9 @@ func CreateOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
 		return
 	}
+
+	// Increment orders count for product
+	_ = productservice.NewDefaultService().IncrementOrderCount(c.Request.Context(), product.ID)
 
 	orderID := order.ID
 	_ = services.CreateNotification(
