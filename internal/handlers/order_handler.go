@@ -71,6 +71,12 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
+	var buyer models.User
+	if err := database.DB.First(&buyer, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
 	// 2. Find product
 	var product models.Product
 	if err := database.DB.First(&product, input.ProductID).Error; err != nil {
@@ -90,6 +96,23 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
+	finalShippingAddressText := input.ShippingAddressText
+	finalShippingLat := input.ShippingLat
+	finalShippingLng := input.ShippingLng
+
+	if finalShippingAddressText == nil || *finalShippingAddressText == "" {
+		if buyer.Address != "" {
+			buyerAddress := buyer.Address
+			finalShippingAddressText = &buyerAddress
+		}
+	}
+	if finalShippingLat == nil && buyer.AddressLat != nil {
+		finalShippingLat = buyer.AddressLat
+	}
+	if finalShippingLng == nil && buyer.AddressLng != nil {
+		finalShippingLng = buyer.AddressLng
+	}
+
 	// 7. Verify delivery type
 	validDelivery := false
 	switch input.DeliveryType {
@@ -100,11 +123,11 @@ func CreateOrder(c *gin.Context) {
 	case models.DeliveryTypeMyDelivery:
 		if seller.FreeDeliveryEnabled {
 			validDelivery = true
-			if input.ShippingAddressText == nil || *input.ShippingAddressText == "" {
+			if finalShippingAddressText == nil || *finalShippingAddressText == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_address_text is required for MY_DELIVERY"})
 				return
 			}
-			if !hasValidCoordinates(input.ShippingLat, input.ShippingLng) {
+			if !hasValidCoordinates(finalShippingLat, finalShippingLng) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_lat and shipping_lng are required for MY_DELIVERY"})
 				return
 			}
@@ -116,8 +139,8 @@ func CreateOrder(c *gin.Context) {
 			distanceKm := calculateDistanceKm(
 				seller.DeliveryCenterLat,
 				seller.DeliveryCenterLng,
-				*input.ShippingLat,
-				*input.ShippingLng,
+				*finalShippingLat,
+				*finalShippingLng,
 			)
 			if distanceKm > seller.DeliveryRadiusKm {
 				c.JSON(http.StatusBadRequest, gin.H{
@@ -131,7 +154,7 @@ func CreateOrder(c *gin.Context) {
 	case models.DeliveryTypeIntercity:
 		if seller.IntercityEnabled {
 			validDelivery = true
-			if input.ShippingAddressText == nil || *input.ShippingAddressText == "" {
+			if finalShippingAddressText == nil || *finalShippingAddressText == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_address_text is required for INTERCITY"})
 				return
 			}
@@ -164,9 +187,9 @@ func CreateOrder(c *gin.Context) {
 		Status:              models.StatusPendingSeller,
 		CreatedAt:           time.Now(),
 		DeliveryType:        input.DeliveryType,
-		ShippingAddressText: input.ShippingAddressText,
-		ShippingLat:         input.ShippingLat,
-		ShippingLng:         input.ShippingLng,
+		ShippingAddressText: finalShippingAddressText,
+		ShippingLat:         finalShippingLat,
+		ShippingLng:         finalShippingLng,
 		ShippingComment:     input.ShippingComment,
 		ConfirmCode:         confirmCode,
 	}
@@ -254,22 +277,28 @@ func GetCheckoutOptions(c *gin.Context) {
 	}
 
 	userAddress := ""
+	var userAddressLat *float64
+	var userAddressLng *float64
 	if userID := c.GetUint("userID"); userID != 0 {
 		var user models.User
 		if err := database.DB.First(&user, userID).Error; err == nil {
 			userAddress = user.Address
+			userAddressLat = user.AddressLat
+			userAddressLng = user.AddressLng
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"product_id":          product.ID,
-		"product_title":       product.Title,
-		"product_price":       product.Cost,
-		"seller_id":           seller.ID,
-		"seller_name":         resolveSellerDisplayName(seller),
-		"buyer_saved_address": userAddress,
-		"delivery_options":    enabledOptions,
-		"delivery_summary":    serializeDeliverySettings(seller),
+		"product_id":              product.ID,
+		"product_title":           product.Title,
+		"product_price":           product.Cost,
+		"seller_id":               seller.ID,
+		"seller_name":             resolveSellerDisplayName(seller),
+		"buyer_saved_address":     userAddress,
+		"buyer_saved_address_lat": userAddressLat,
+		"buyer_saved_address_lng": userAddressLng,
+		"delivery_options":        enabledOptions,
+		"delivery_summary":        serializeDeliverySettings(seller),
 	})
 }
 

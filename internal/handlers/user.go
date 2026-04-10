@@ -8,7 +8,6 @@ import (
 	"ozMadeBack/internal/services"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,6 +31,16 @@ func GetProfile(c *gin.Context) {
 
 func UpdateProfile(c *gin.Context) {
 	userID := c.GetUint("userID")
+	var input struct {
+		Name       string   `json:"name"`
+		Address    string   `json:"address"`
+		AddressLat *float64 `json:"address_lat"`
+		AddressLng *float64 `json:"address_lng"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -39,71 +48,22 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// Handle multipart form for photo upload
-	contentType := c.GetHeader("Content-Type")
-	if strings.HasPrefix(contentType, "multipart/form-data") {
-		// Update fields from form
-		if name := c.PostForm("name"); name != "" {
-			user.Name = name
-		}
-		if address := c.PostForm("address"); address != "" {
-			user.Address = address
-		}
-		if phoneNumber := c.PostForm("phone_number"); phoneNumber != "" {
-			user.PhoneNumber = phoneNumber
-		}
-		if fcmToken := c.PostForm("fcm_token"); fcmToken != "" {
-			user.FCMToken = fcmToken
-		}
-
-		// Handle photo upload
-		file, err := c.FormFile("photo")
-		if err == nil && services.GCS != nil {
-			ext := filepath.Ext(file.Filename)
-			objectName := fmt.Sprintf("users/%d/%s%s", user.ID, uuid.New().String(), ext)
-
-			// Open the file
-			f, _ := file.Open()
-			defer f.Close()
-
-			// Upload to GCS
-			wc := services.GCS.Client.Bucket(services.GCS.BucketName).Object(objectName).NewWriter(c.Request.Context())
-			// io.Copy(wc, f) then wc.Close()
-			_ = wc
-
-			user.PhotoUrl = objectName
-		}
-	} else {
-		// Handle JSON update
-		var input map[string]interface{}
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		// Use a map to update only provided fields
-		// Filter out sensitive fields like ID or FirebaseUID if needed
-		delete(input, "id")
-		delete(input, "firebase_uid")
-
-		if err := database.DB.Model(&user).Updates(input).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
-			return
-		}
-
-		// Refresh user from DB to get the updated values
-		database.DB.First(&user, userID)
+	if input.Name != "" {
+		user.Name = input.Name
 	}
-
-	if err := database.DB.Save(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profile"})
+	if input.Address != "" {
+		user.Address = input.Address
+	}
+	if (input.AddressLat == nil) != (input.AddressLng == nil) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "address_lat and address_lng must be provided together"})
 		return
 	}
-
-	if user.PhotoUrl != "" {
-		user.PhotoUrl, _ = services.GenerateSignedURLForUser(user.PhotoUrl)
+	if input.AddressLat != nil && input.AddressLng != nil {
+		user.AddressLat = input.AddressLat
+		user.AddressLng = input.AddressLng
 	}
 
+	database.DB.Save(&user)
 	c.JSON(http.StatusOK, user)
 }
 
