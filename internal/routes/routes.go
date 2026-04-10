@@ -72,5 +72,6 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		chatRoutes.POST("/:chat_id/messages", handlers.SendMessage)
 		chatRoutes.GET("/:chat_id/messages", handlers.GetChatMessages)
 		chatRoutes.DELETE("/:chat_id", handlers.DeleteChat)
+		chatRoutes.GET("/upload-url", handlers.GetUploadURL)
 	}
 }

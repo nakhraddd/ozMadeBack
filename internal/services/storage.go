@@ -35,9 +35,24 @@ func GenerateSignedURL(objectName string) (string, error) {
 	objectName = strings.TrimPrefix(objectName, "/")
 
 	// Ensure the product image has the "products/" prefix if it doesn't have another directory prefix
-	if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
+	if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") && !strings.HasPrefix(objectName, "chats/") {
 		objectName = "products/" + objectName
 	}
 
 	return GCS.GenerateSignedURL(objectName, "GET", 15*time.Minute, "")
+}
+
+func GenerateSignedURLForChat(objectName string) (string, error) {
+	if GCS == nil {
+		return "", fmt.Errorf("GCS service not initialized")
+	}
+
+	if objectName == "" {
+		return "", nil
+	}
+
+	// Clean the path
+	objectName = strings.TrimPrefix(objectName, "/")
+
+	return GCS.GenerateSignedURL(objectName, "GET", 24*time.Hour, "")
 }

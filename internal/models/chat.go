@@ -38,6 +38,8 @@ type Message struct {
 	SenderRole      string
 	Content         string
 	CreatedAt       time.Time
-	DeletedByBuyer  bool `gorm:"default:false" json:"deleted_by_buyer"`
-	DeletedBySeller bool `gorm:"default:false" json:"deleted_by_seller"`
+	DeletedByBuyer  bool   `gorm:"default:false" json:"deleted_by_buyer"`
+	DeletedBySeller bool   `gorm:"default:false" json:"deleted_by_seller"`
+	MediaUrl        string `json:"media_url"`
+	MediaType       string `json:"media_type"` // photo, audio, video, file
 }
