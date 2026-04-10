@@ -27,14 +27,14 @@ func SyncUser(c *gin.Context) {
 
 	if result.Error != nil {
 		phoneNumber, _ := firebaseToken.Claims["phone_number"].(string)
-		email, _ := firebaseToken.Claims["email"].(string)
 		name, _ := firebaseToken.Claims["name"].(string)
+		photoURL, _ := firebaseToken.Claims["picture"].(string)
 
 		user = models.User{
 			FirebaseUID: firebaseToken.UID,
 			PhoneNumber: phoneNumber,
-			Email:       email,
 			Name:        name,
+			PhotoUrl:    photoURL,
 		}
 
 		if err := database.DB.Create(&user).Error; err != nil {
@@ -42,14 +42,14 @@ func SyncUser(c *gin.Context) {
 			return
 		}
 	} else {
-		// Update email or name if they changed in Firebase/are missing
+		// Update name or photo if they changed in Firebase/are missing
 		updated := false
-		if email, ok := firebaseToken.Claims["email"].(string); ok && user.Email == "" {
-			user.Email = email
-			updated = true
-		}
 		if name, ok := firebaseToken.Claims["name"].(string); ok && user.Name == "" {
 			user.Name = name
+			updated = true
+		}
+		if photoURL, ok := firebaseToken.Claims["picture"].(string); ok && user.PhotoUrl == "" {
+			user.PhotoUrl = photoURL
 			updated = true
 		}
 		if updated {

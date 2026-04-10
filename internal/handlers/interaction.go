@@ -55,7 +55,7 @@ func GetProductReviews(c *gin.Context) {
 		if user, exists := userMap[comment.UserID]; exists {
 			name = user.Name
 			if name == "" {
-				name = user.Email
+				name = user.PhoneNumber
 			}
 		}
 
@@ -150,7 +150,7 @@ func GetSellerReviews(c *gin.Context) {
 		if user, exists := userMap[comment.UserID]; exists {
 			name = user.Name
 			if name == "" {
-				name = user.Email
+				name = user.PhoneNumber
 			}
 		}
 
@@ -182,7 +182,7 @@ func GetSellerReviews(c *gin.Context) {
 
 	sellerName := seller.User.Name
 	if sellerName == "" {
-		sellerName = seller.User.Email
+		sellerName = seller.User.PhoneNumber
 	}
 
 	c.JSON(http.StatusOK, gin.H{

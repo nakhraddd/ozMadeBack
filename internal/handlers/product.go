@@ -356,9 +356,6 @@ func buildSellerContext(seller models.Seller, exists bool) (gin.H, gin.H, string
 
 	sellerName := seller.User.Name
 	if sellerName == "" {
-		sellerName = seller.User.Email
-	}
-	if sellerName == "" {
 		sellerName = seller.User.PhoneNumber
 	}
 	if sellerName == "" {
