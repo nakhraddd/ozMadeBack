@@ -88,6 +88,14 @@ type Level struct {
 	Hint     string
 }
 
+type sellerMetrics struct {
+	OrdersCount    int
+	AverageRating  float64
+	RatingsCount   int
+	ReviewsCount   int
+	DaysWithOzMade int
+}
+
 // computeLevel translates the Kotlin logic to Go
 func computeLevel(orders int, rating float64, reviews int, days int) Level {
 	ordersPts := int(math.Min(40, float64(orders*2)))
@@ -116,6 +124,46 @@ func computeLevel(orders int, rating float64, reviews int, days int) Level {
 	default:
 		return Level{"Топ мастер", progress, "Максимальный уровень доверия покупателей"}
 	}
+}
+
+func computeSellerMetrics(seller models.Seller) sellerMetrics {
+	productIDs := make([]uint, 0)
+	if err := database.DB.Model(&models.Product{}).Where("seller_id = ?", seller.ID).Pluck("id", &productIDs).Error; err != nil {
+		return sellerMetrics{
+			OrdersCount:    seller.OrdersCount,
+			AverageRating:  seller.AverageRating,
+			RatingsCount:   seller.RatingsCount,
+			ReviewsCount:   seller.ReviewsCount,
+			DaysWithOzMade: int(time.Since(seller.CreatedAt).Hours() / 24),
+		}
+	}
+
+	metrics := sellerMetrics{
+		DaysWithOzMade: int(time.Since(seller.CreatedAt).Hours() / 24),
+	}
+
+	if len(productIDs) == 0 {
+		return metrics
+	}
+
+	var ordersCount int64
+	database.DB.Model(&models.Order{}).Where("product_id IN ?", productIDs).Count(&ordersCount)
+
+	var ratingsCount int64
+	database.DB.Model(&models.Comment{}).Where("product_id IN ?", productIDs).Count(&ratingsCount)
+
+	var reviewsCount int64
+	database.DB.Model(&models.Comment{}).Where("product_id IN ? AND text != ''", productIDs).Count(&reviewsCount)
+
+	var averageRating float64
+	database.DB.Model(&models.Comment{}).Where("product_id IN ?", productIDs).Select("COALESCE(AVG(rating), 0)").Scan(&averageRating)
+
+	metrics.OrdersCount = int(ordersCount)
+	metrics.RatingsCount = int(ratingsCount)
+	metrics.ReviewsCount = int(reviewsCount)
+	metrics.AverageRating = math.Round(averageRating*10) / 10
+
+	return metrics
 }
 
 func NewSellerHandler(gcsService *services.GCSService) *SellerHandler {
@@ -442,6 +490,7 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 
 	productDtos := buildSellerProfileProducts(products, seller)
 	name := resolveSellerPublicName(seller)
+	metrics := computeSellerMetrics(seller)
 
 	categories := []string{}
 	if seller.Categories != "" {
@@ -460,6 +509,11 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 		"address":        seller.User.Address,
 		"status":         seller.Status,
 		"total_products": len(productDtos),
+		"orders_count":   metrics.OrdersCount,
+		"average_rating": metrics.AverageRating,
+		"ratings_count":  metrics.RatingsCount,
+		"reviews_count":  metrics.ReviewsCount,
+		"days_with_us":   metrics.DaysWithOzMade,
 		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
 		// Additional fields for editing
@@ -486,6 +540,7 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 
 	productDtos := buildSellerProfileProducts(products, seller)
 	name := resolveSellerPublicName(seller)
+	metrics := computeSellerMetrics(seller)
 
 	photoURL := ""
 	if seller.PhotoURL != "" {
@@ -500,6 +555,11 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 		"address":        seller.User.Address,
 		"status":         seller.Status,
 		"total_products": len(productDtos),
+		"orders_count":   metrics.OrdersCount,
+		"average_rating": metrics.AverageRating,
+		"ratings_count":  metrics.RatingsCount,
+		"reviews_count":  metrics.ReviewsCount,
+		"days_with_us":   metrics.DaysWithOzMade,
 		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
 	})
@@ -526,9 +586,8 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 		Where("products.seller_id = ?", sellerID).
 		Find(&comments)
 
-	daysWithOzMade := int(time.Since(seller.CreatedAt).Hours() / 24)
-
-	level := computeLevel(seller.OrdersCount, seller.AverageRating, seller.ReviewsCount, daysWithOzMade)
+	metrics := computeSellerMetrics(seller)
+	level := computeLevel(metrics.OrdersCount, metrics.AverageRating, metrics.ReviewsCount, metrics.DaysWithOzMade)
 
 	var reviewDtos []SellerQualityCommentDto
 	for _, comment := range comments {
@@ -560,14 +619,14 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 		Address:        seller.Address,
 		Categories:     seller.Categories,
 		Description:    seller.Description,
-		OrdersCount:    seller.OrdersCount,
-		DaysWithOzMade: daysWithOzMade,
+		OrdersCount:    metrics.OrdersCount,
+		DaysWithOzMade: metrics.DaysWithOzMade,
 		LevelTitle:     level.Title,
 		LevelProgress:  level.Progress,
 		LevelHint:      level.Hint,
-		AverageRating:  seller.AverageRating,
-		RatingsCount:   seller.RatingsCount,
-		ReviewsCount:   seller.ReviewsCount,
+		AverageRating:  metrics.AverageRating,
+		RatingsCount:   metrics.RatingsCount,
+		ReviewsCount:   metrics.ReviewsCount,
 		Reviews:        reviewDtos,
 	}
 
