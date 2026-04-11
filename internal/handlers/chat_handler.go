@@ -458,8 +458,8 @@ func GetUploadURL(c *gin.Context) {
 }
 
 func resolveSellerDisplayNameForChat(seller models.Seller) string {
-	if seller.StoreName != "" {
-		return seller.StoreName
+	if seller.DisplayName != "" {
+		return seller.DisplayName
 	}
 	if seller.User.Name != "" {
 		return seller.User.Name
