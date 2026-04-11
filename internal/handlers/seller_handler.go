@@ -83,9 +83,9 @@ type SellerQualityResponse struct {
 }
 
 type Level struct {
-	Title    string
-	Progress float32
-	Hint     string
+	Title    string  `json:"level_title"`
+	Progress float32 `json:"level_progress"`
+	Hint     string  `json:"level_hint"`
 }
 
 type sellerMetrics struct {
@@ -491,6 +491,7 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	productDtos := buildSellerProfileProducts(products, seller)
 	name := resolveSellerPublicName(seller)
 	metrics := computeSellerMetrics(seller)
+	level := computeLevel(metrics.OrdersCount, metrics.AverageRating, metrics.ReviewsCount, metrics.DaysWithOzMade)
 
 	categories := []string{}
 	if seller.Categories != "" {
@@ -514,6 +515,9 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 		"ratings_count":  metrics.RatingsCount,
 		"reviews_count":  metrics.ReviewsCount,
 		"days_with_us":   metrics.DaysWithOzMade,
+		"level_title":    level.Title,
+		"level_progress": level.Progress,
+		"level_hint":     level.Hint,
 		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
 		// Additional fields for editing
@@ -541,6 +545,7 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 	productDtos := buildSellerProfileProducts(products, seller)
 	name := resolveSellerPublicName(seller)
 	metrics := computeSellerMetrics(seller)
+	level := computeLevel(metrics.OrdersCount, metrics.AverageRating, metrics.ReviewsCount, metrics.DaysWithOzMade)
 
 	photoURL := ""
 	if seller.PhotoURL != "" {
@@ -560,6 +565,9 @@ func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
 		"ratings_count":  metrics.RatingsCount,
 		"reviews_count":  metrics.ReviewsCount,
 		"days_with_us":   metrics.DaysWithOzMade,
+		"level_title":    level.Title,
+		"level_progress": level.Progress,
+		"level_hint":     level.Hint,
 		"products":       productDtos,
 		"delivery":       serializeDeliverySettings(seller),
 	})
