@@ -54,6 +54,18 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
+	// Reset deleted flags if a new message is sent
+	updates := make(map[string]interface{})
+	if chat.DeletedByBuyer {
+		updates["deleted_by_buyer"] = false
+	}
+	if chat.DeletedBySeller {
+		updates["deleted_by_seller"] = false
+	}
+	if len(updates) > 0 {
+		database.DB.Model(&chat).Updates(updates)
+	}
+
 	// Handle file upload if present
 	mediaUrl := ""
 	mediaType := ""
@@ -93,23 +105,11 @@ func SendMessage(c *gin.Context) {
 			MediaUrl  string `json:"media_url"`
 			MediaType string `json:"media_type"`
 		}
-		if err := c.ShouldBindJSON(&input); err == nil {
+		if err := c.ShouldBindJSON(&input); err != nil {
 			content = input.Content
 			mediaUrl = input.MediaUrl
 			mediaType = input.MediaType
 		}
-	}
-
-	// Reset deleted flags if a new message is sent
-	updates := make(map[string]interface{})
-	if chat.DeletedByBuyer {
-		updates["deleted_by_buyer"] = false
-	}
-	if chat.DeletedBySeller {
-		updates["deleted_by_seller"] = false
-	}
-	if len(updates) > 0 {
-		database.DB.Model(&chat).Updates(updates)
 	}
 
 	message := models.Message{
@@ -274,6 +274,7 @@ func InitiateChat(c *gin.Context) {
 
 func GetChats(c *gin.Context) {
 	userID := c.GetUint("userID")
+	role := c.Query("role") // "buyer" or "seller"
 
 	// Find seller ID if user is a seller
 	var sellerID uint
@@ -283,10 +284,21 @@ func GetChats(c *gin.Context) {
 	}
 
 	var chats []models.Chat
-	// Fetch chats where user is participant.
-	query := database.DB.Where("(buyer_id = ? AND deleted_by_buyer = false)", userID)
-	if sellerID != 0 {
-		query = query.Or("(seller_id = ? AND deleted_by_seller = false)", sellerID)
+	query := database.DB.Model(&models.Chat{})
+
+	if role == "buyer" {
+		query = query.Where("buyer_id = ? AND deleted_by_buyer = false", userID)
+	} else if role == "seller" && sellerID != 0 {
+		query = query.Where("seller_id = ? AND deleted_by_seller = false", sellerID)
+	} else {
+		// Default behavior: show both if role not specified
+		q := "(buyer_id = ? AND deleted_by_buyer = false)"
+		args := []interface{}{userID}
+		if sellerID != 0 {
+			q += " OR (seller_id = ? AND deleted_by_seller = false)"
+			args = append(args, sellerID)
+		}
+		query = query.Where(q, args...)
 	}
 
 	if err := query.Find(&chats).Error; err != nil {
