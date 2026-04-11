@@ -67,7 +67,7 @@ type SellerQualityResponse struct {
 	PhotoURL       string                    `json:"photo_url"`
 	FirstName      string                    `json:"first_name"`
 	LastName       string                    `json:"last_name"`
-	StoreName      string                    `json:"store_name"`
+	DisplayName    string                    `json:"store_name"`
 	City           string                    `json:"city"`
 	Address        string                    `json:"address"`
 	Categories     string                    `json:"categories"`
@@ -175,7 +175,7 @@ func NewSellerHandler(gcsService *services.GCSService) *SellerHandler {
 type SellerRegistrationRequestDto struct {
 	FirstName   string   `json:"first_name" binding:"required"`
 	LastName    string   `json:"last_name" binding:"required"`
-	DisplayName string   `json:"display_name" binding:"required"` // Maps to StoreName
+	DisplayName string   `json:"display_name" binding:"required"` // Maps to DisplayName
 	City        string   `json:"city" binding:"required"`
 	Address     string   `json:"address" binding:"required"`
 	Categories  []string `json:"categories" binding:"required"`
@@ -213,7 +213,7 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		UserID:      userID,
 		FirstName:   input.FirstName,
 		LastName:    input.LastName,
-		StoreName:   input.DisplayName,
+		DisplayName: input.DisplayName,
 		City:        input.City,
 		Address:     input.Address,
 		Description: input.About,
@@ -530,7 +530,7 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 		// Additional fields for editing
 		"first_name":   seller.FirstName,
 		"last_name":    seller.LastName,
-		"display_name": seller.StoreName, // Maps to StoreName
+		"display_name": seller.DisplayName, // Maps to DisplayName
 		"city":         seller.City,
 		"about":        seller.Description, // Maps to Description
 		"categories":   categories,
@@ -629,7 +629,7 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 		PhotoURL:       photoURL,
 		FirstName:      seller.FirstName,
 		LastName:       seller.LastName,
-		StoreName:      seller.StoreName,
+		DisplayName:    seller.DisplayName,
 		City:           seller.City,
 		Address:        seller.Address,
 		Categories:     seller.Categories,
@@ -715,8 +715,8 @@ func buildSellerProfileProducts(products []models.Product, seller models.Seller)
 }
 
 func resolveSellerPublicName(seller models.Seller) string {
-	if seller.StoreName != "" { // Prefer store name if available
-		return seller.StoreName
+	if seller.DisplayName != "" { // Prefer store name if available
+		return seller.DisplayName
 	}
 	if seller.FirstName != "" && seller.LastName != "" {
 		return seller.FirstName + " " + seller.LastName
@@ -746,8 +746,8 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		if lastName := c.PostForm("last_name"); lastName != "" {
 			seller.LastName = lastName
 		}
-		if storeName := c.PostForm("store_name"); storeName != "" {
-			seller.StoreName = storeName
+		if DisplayName := c.PostForm("store_name"); DisplayName != "" {
+			seller.DisplayName = DisplayName
 		}
 		if city := c.PostForm("city"); city != "" {
 			seller.City = city
@@ -782,7 +782,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		var input struct {
 			FirstName   *string   `json:"first_name"`
 			LastName    *string   `json:"last_name"`
-			StoreName   *string   `json:"display_name"`
+			DisplayName *string   `json:"display_name"`
 			City        *string   `json:"city"`
 			Address     *string   `json:"address"`
 			Description *string   `json:"description"`
@@ -802,8 +802,8 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		if input.LastName != nil {
 			updates["last_name"] = *input.LastName
 		}
-		if input.StoreName != nil {
-			updates["display_name"] = *input.StoreName
+		if input.DisplayName != nil {
+			updates["display_name"] = *input.DisplayName
 		}
 		if input.City != nil {
 			updates["city"] = *input.City

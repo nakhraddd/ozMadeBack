@@ -8,7 +8,7 @@ type Seller struct {
 	User                  User   `gorm:"foreignKey:UserID"`
 	FirstName             string `json:"first_name"`
 	LastName              string `json:"last_name"`
-	StoreName             string `json:"store_name"`
+	DisplayName           string `json:"display_name"`
 	City                  string `json:"city"`
 	Address               string `json:"address"`
 	Description           string `json:"description"`
