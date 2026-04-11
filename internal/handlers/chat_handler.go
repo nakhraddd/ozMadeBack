@@ -265,6 +265,8 @@ func InitiateChat(c *gin.Context) {
 	chat.ProductImage = url
 	chat.SellerName = resolveSellerDisplayNameForChat(seller)
 	chat.BuyerName = buyer.Name
+	chat.SellerPhoto, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
+	chat.BuyerPhoto, _ = services.GenerateSignedURLForUser(buyer.PhotoUrl)
 	chat.PhoneNumber = seller.User.PhoneNumber // As initiator (buyer), phone number is the seller's
 
 	c.JSON(http.StatusOK, chat)
@@ -303,7 +305,7 @@ func GetChats(c *gin.Context) {
 			}
 		}
 
-		// Populate Names and Phone Number
+		// Populate Names, Photos and Phone Number
 		var s models.Seller
 		var b models.User
 		database.DB.Preload("User").First(&s, chats[i].SellerID)
@@ -311,6 +313,8 @@ func GetChats(c *gin.Context) {
 
 		chats[i].SellerName = resolveSellerDisplayNameForChat(s)
 		chats[i].BuyerName = b.Name
+		chats[i].SellerPhoto, _ = services.GenerateSignedURLForSeller(s.PhotoURL)
+		chats[i].BuyerPhoto, _ = services.GenerateSignedURLForUser(b.PhotoUrl)
 
 		// Return the phone number of the "other" party
 		if userID == chats[i].BuyerID {

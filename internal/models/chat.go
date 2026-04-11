@@ -18,6 +18,8 @@ type Chat struct {
 	ProductImage    string `gorm:"-" json:"product_image"`
 	SellerName      string `gorm:"-" json:"seller_name"`
 	BuyerName       string `gorm:"-" json:"buyer_name"`
+	SellerPhoto     string `gorm:"-" json:"seller_photo"`
+	BuyerPhoto      string `gorm:"-" json:"buyer_photo"`
 	PhoneNumber     string `gorm:"-" json:"phone_number"` // The phone number of the *other* party
 	Messages        []Message
 }
