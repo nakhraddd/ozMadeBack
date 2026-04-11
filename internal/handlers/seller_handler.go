@@ -1103,6 +1103,16 @@ func (h *SellerHandler) CancelOrderSeller(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel order"})
 		return
 	}
+
+	orderRecordID := order.ID
+	_ = services.CreateNotification(
+		order.UserID,
+		"Order cancelled",
+		"The seller cancelled your order.",
+		"buyer_order_cancelled",
+		&orderRecordID,
+		nil,
+	)
 	c.JSON(http.StatusOK, gin.H{"message": "Order cancelled"})
 }
 
@@ -1135,6 +1145,16 @@ func (h *SellerHandler) ReadyOrShipped(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
 	}
+
+	orderRecordID := order.ID
+	_ = services.CreateNotification(
+		order.UserID,
+		"Order shipped",
+		"Your intercity order is ready or has been shipped.",
+		"buyer_order_ready_or_shipped",
+		&orderRecordID,
+		nil,
+	)
 	c.JSON(http.StatusOK, gin.H{"message": "Order marked as ready/shipped"})
 }
 
@@ -1180,6 +1200,16 @@ func (h *SellerHandler) CompleteOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete order"})
 		return
 	}
+
+	orderRecordID := order.ID
+	_ = services.CreateNotification(
+		order.UserID,
+		"Order completed",
+		"Your order has been completed successfully.",
+		"buyer_order_completed",
+		&orderRecordID,
+		nil,
+	)
 	c.JSON(http.StatusOK, gin.H{"message": "Order completed"})
 }
 

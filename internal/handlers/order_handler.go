@@ -346,6 +346,18 @@ func CancelOrderBuyer(c *gin.Context) {
 		return
 	}
 
+	if sellerUserID, err := findSellerUserIDByProductID(order.ProductID); err == nil {
+		orderRecordID := order.ID
+		_ = services.CreateNotification(
+			sellerUserID,
+			"Order cancelled",
+			"The buyer cancelled the order.",
+			"seller_order_cancelled",
+			&orderRecordID,
+			nil,
+		)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Order cancelled"})
 }
 
@@ -372,6 +384,18 @@ func BuyerReceived(c *gin.Context) {
 	if err := database.DB.Model(&order).Update("status", models.StatusCompleted).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
+	}
+
+	if sellerUserID, err := findSellerUserIDByProductID(order.ProductID); err == nil {
+		orderRecordID := order.ID
+		_ = services.CreateNotification(
+			sellerUserID,
+			"Order received",
+			"The buyer confirmed that the order was received.",
+			"seller_order_completed",
+			&orderRecordID,
+			nil,
+		)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order marked as received"})
@@ -499,4 +523,18 @@ func resolveSellerDisplayName(seller models.Seller) string {
 		return seller.User.PhoneNumber
 	}
 	return "Unknown"
+}
+
+func findSellerUserIDByProductID(productID uint) (uint, error) {
+	var product models.Product
+	if err := database.DB.Select("seller_id").First(&product, productID).Error; err != nil {
+		return 0, err
+	}
+
+	var seller models.Seller
+	if err := database.DB.Select("user_id").First(&seller, product.SellerID).Error; err != nil {
+		return 0, err
+	}
+
+	return seller.UserID, nil
 }
