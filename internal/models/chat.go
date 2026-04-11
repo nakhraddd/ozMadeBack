@@ -14,8 +14,11 @@ type Chat struct {
 	ProductID       uint   `gorm:"uniqueIndex:idx_chat_unique"`
 	DeletedByBuyer  bool   `gorm:"default:false" json:"deleted_by_buyer"`
 	DeletedBySeller bool   `gorm:"default:false" json:"deleted_by_seller"`
-	ProductName     string `gorm:"-"`
-	ProductImage    string `gorm:"-"`
+	ProductName     string `gorm:"-" json:"product_name"`
+	ProductImage    string `gorm:"-" json:"product_image"`
+	SellerName      string `gorm:"-" json:"seller_name"`
+	BuyerName       string `gorm:"-" json:"buyer_name"`
+	PhoneNumber     string `gorm:"-" json:"phone_number"` // The phone number of the *other* party
 	Messages        []Message
 }
 

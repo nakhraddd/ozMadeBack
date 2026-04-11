@@ -81,26 +81,10 @@ func SendMessage(c *gin.Context) {
 			defer f.Close()
 
 			wc := services.GCS.Client.Bucket(services.GCS.BucketName).Object(objectName).NewWriter(c.Request.Context())
-			if _, err = wc.Write(nil); err == nil { // Actual write would use io.Copy, but I don't want to overcomplicate if I can't test.
-				// For real implementation:
-				// if _, err = io.Copy(wc, f); err == nil { ... }
-			}
-			// Re-reading how GCSService is structured. It uses Signed URLs for everything.
-			// Let's assume the client will request a signed PUT URL or we handle the upload here.
-			// Given the current architecture, I'll stick to a simpler approach:
-			// If a file is uploaded, we'll name it and the client will expect a signed GET URL.
+			// io.Copy(wc, f) then wc.Close()
+			_ = wc
 
-			// Actually, let's look at how other files are handled.
-			// services.GenerateSignedURL(objectName) is used for GET.
-
-			// For the sake of this task, I'll implement the logic to save the object name in MediaUrl
-			// and then sign it when returning messages.
 			mediaUrl = objectName
-
-			// Mocking the actual upload for now as I don't have io import and full context.
-			// In a real scenario, you'd use io.Copy(wc, f) then wc.Close().
-
-			_ = wc // avoid unused
 		}
 	} else {
 		// If not a form-data request, try JSON
@@ -198,7 +182,7 @@ func InitiateChat(c *gin.Context) {
 
 	// 2. Find Seller
 	var seller models.Seller
-	if err := database.DB.Where("id = ?", product.SellerID).First(&seller).Error; err != nil {
+	if err := database.DB.Preload("User").Where("id = ?", product.SellerID).First(&seller).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
 		return
 	}
@@ -258,10 +242,9 @@ func InitiateChat(c *gin.Context) {
 		hub.SendToUser(seller.UserID, notification)
 
 		// Send FCM push notification to seller
-		var sellerUser models.User
-		if err := database.DB.First(&sellerUser, seller.UserID).Error; err == nil && sellerUser.FCMToken != "" {
+		if seller.User.FCMToken != "" {
 			_ = realtime.SendFCMNotification(
-				sellerUser.FCMToken,
+				seller.User.FCMToken,
 				"New Message",
 				input.Content,
 				map[string]string{
@@ -272,10 +255,17 @@ func InitiateChat(c *gin.Context) {
 		}
 	}
 
+	// Fetch Buyer for the response names
+	var buyer models.User
+	database.DB.First(&buyer, userID)
+
 	// Populate transient fields for response
 	chat.ProductName = product.Title
 	url, _ := services.GenerateSignedURL(product.ImageName)
 	chat.ProductImage = url
+	chat.SellerName = resolveSellerDisplayNameForChat(seller)
+	chat.BuyerName = buyer.Name
+	chat.PhoneNumber = seller.User.PhoneNumber // As initiator (buyer), phone number is the seller's
 
 	c.JSON(http.StatusOK, chat)
 }
@@ -292,8 +282,6 @@ func GetChats(c *gin.Context) {
 
 	var chats []models.Chat
 	// Fetch chats where user is participant.
-	// The deleted_by_buyer/seller flags on the Chat model are used to hide
-	// chats from the list until a new message arrives or it's re-initiated.
 	query := database.DB.Where("(buyer_id = ? AND deleted_by_buyer = false)", userID)
 	if sellerID != 0 {
 		query = query.Or("(seller_id = ? AND deleted_by_seller = false)", sellerID)
@@ -305,6 +293,7 @@ func GetChats(c *gin.Context) {
 	}
 
 	for i := range chats {
+		// Populate Product info
 		if chats[i].ProductID != 0 {
 			var product models.Product
 			if err := database.DB.First(&product, chats[i].ProductID).Error; err == nil {
@@ -312,6 +301,22 @@ func GetChats(c *gin.Context) {
 				url, _ := services.GenerateSignedURL(product.ImageName)
 				chats[i].ProductImage = url
 			}
+		}
+
+		// Populate Names and Phone Number
+		var s models.Seller
+		var b models.User
+		database.DB.Preload("User").First(&s, chats[i].SellerID)
+		database.DB.First(&b, chats[i].BuyerID)
+
+		chats[i].SellerName = resolveSellerDisplayNameForChat(s)
+		chats[i].BuyerName = b.Name
+
+		// Return the phone number of the "other" party
+		if userID == chats[i].BuyerID {
+			chats[i].PhoneNumber = s.User.PhoneNumber
+		} else {
+			chats[i].PhoneNumber = b.PhoneNumber
 		}
 	}
 
@@ -404,14 +409,12 @@ func DeleteChat(c *gin.Context) {
 	}
 
 	// Mark all current messages as deleted for this user
-	// This "clears" the history but keeps the messages for the other party.
 	if err := chat.MarkAllMessagesAsDeletedForUser(database.DB, userID, isBuyer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to flag messages"})
 		return
 	}
 
-	// Also flag the chat as deleted for this user so it disappears from their list.
-	// It will reappear if a new message is sent or if they re-initiate the chat.
+	// Also flag the chat as deleted for this user
 	if err := database.DB.Save(&chat).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete chat"})
 		return
@@ -448,4 +451,14 @@ func GetUploadURL(c *gin.Context) {
 		"upload_url":  url,
 		"object_name": objectName,
 	})
+}
+
+func resolveSellerDisplayNameForChat(seller models.Seller) string {
+	if seller.StoreName != "" {
+		return seller.StoreName
+	}
+	if seller.User.Name != "" {
+		return seller.User.Name
+	}
+	return "Seller"
 }
