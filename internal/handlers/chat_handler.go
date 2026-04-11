@@ -105,7 +105,7 @@ func SendMessage(c *gin.Context) {
 			MediaUrl  string `json:"media_url"`
 			MediaType string `json:"media_type"`
 		}
-		if err := c.ShouldBindJSON(&input); err != nil {
+		if err := c.ShouldBindJSON(&input); err == nil {
 			content = input.Content
 			mediaUrl = input.MediaUrl
 			mediaType = input.MediaType
