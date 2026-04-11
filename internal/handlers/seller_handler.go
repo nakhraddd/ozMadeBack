@@ -782,7 +782,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		var input struct {
 			FirstName   *string   `json:"first_name"`
 			LastName    *string   `json:"last_name"`
-			StoreName   *string   `json:"store_name"`
+			StoreName   *string   `json:"display_name"`
 			City        *string   `json:"city"`
 			Address     *string   `json:"address"`
 			Description *string   `json:"description"`
@@ -803,7 +803,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 			updates["last_name"] = *input.LastName
 		}
 		if input.StoreName != nil {
-			updates["store_name"] = *input.StoreName
+			updates["display_name"] = *input.StoreName
 		}
 		if input.City != nil {
 			updates["city"] = *input.City
