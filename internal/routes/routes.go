@@ -32,8 +32,8 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		productRoutes.GET("/:id/reviews", handlers.GetProductReviews)
 		productRoutes.POST("/:id/view", handlers.ViewProduct)
 
-		productRoutes.POST("/:id/comments", handlers.PostComment) // General comment route
-		productRoutes.POST("/:id/report", handlers.ReportProduct)
+		productRoutes.POST("/:id/comments", auth.AuthMiddleware(), handlers.PostComment) // Protected
+		productRoutes.POST("/:id/report", auth.AuthMiddleware(), handlers.ReportProduct) // Protected
 	}
 
 	userRoutes := r.Group("/profile")
