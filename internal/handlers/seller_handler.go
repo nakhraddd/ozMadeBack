@@ -44,6 +44,7 @@ type SellerProfileProductDto struct {
 	Composition   string    `json:"composition"`
 	YouTubeURL    string    `json:"you_tube_url"`
 	Categories    []string  `json:"categories"`
+	IsHidden      bool      `json:"is_hidden"`
 	CreatedAt     time.Time `json:"created_at"`
 	SellerName    string    `json:"seller_name"`
 	ShareLink     string    `json:"share_link"`
@@ -362,6 +363,7 @@ func (h *SellerHandler) CreateProduct(c *gin.Context) {
 		YouTubeUrl  string   `json:"youtube_url"`
 		Categories  []string `json:"categories"`
 		Images      []string `json:"images"`
+		IsHidden    bool     `json:"is_hidden"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -385,6 +387,7 @@ func (h *SellerHandler) CreateProduct(c *gin.Context) {
 		YouTubeUrl:  input.YouTubeUrl,
 		Categories:  input.Categories,
 		Images:      input.Images,
+		IsHidden:    input.IsHidden,
 	}
 
 	if err := database.DB.Create(&product).Error; err != nil {
@@ -424,6 +427,7 @@ func (h *SellerHandler) UpdateProduct(c *gin.Context) {
 		DepthCm     string   `json:"DepthCm"`
 		Composition string   `json:"Composition"`
 		YouTubeUrl  string   `json:"YouTubeUrl"`
+		IsHidden    *bool    `json:"IsHidden"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -442,6 +446,9 @@ func (h *SellerHandler) UpdateProduct(c *gin.Context) {
 	product.DepthCm = input.DepthCm
 	product.Composition = input.Composition
 	product.YouTubeUrl = input.YouTubeUrl
+	if input.IsHidden != nil {
+		product.IsHidden = *input.IsHidden
+	}
 
 	if err := database.DB.Save(&product).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
@@ -697,6 +704,7 @@ func buildSellerProfileProducts(products []models.Product, seller models.Seller)
 			Composition:   product.Composition,
 			YouTubeURL:    product.YouTubeUrl,
 			Categories:    product.Categories,
+			IsHidden:      product.IsHidden,
 			CreatedAt:     product.CreatedAt,
 			SellerName:    sellerName,
 			ShareLink:     appLinkBase + "/products/" + strconv.FormatUint(uint64(product.ID), 10),
