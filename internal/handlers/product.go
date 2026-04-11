@@ -26,7 +26,7 @@ type ProductResponse struct {
 
 func GetProducts(c *gin.Context) {
 	var products []models.Product
-	query := database.DB.Model(&models.Product{})
+	query := database.DB.Model(&models.Product{}).Where("is_hidden = false")
 
 	if typeFilter := c.Query("type"); typeFilter != "" {
 		query = query.Where("type = ?", typeFilter)
@@ -146,7 +146,7 @@ func SearchProducts(c *gin.Context) {
 	}
 
 	var products []models.Product
-	if err := database.DB.Where("id IN ?", productIDs).Find(&products).Error; err != nil {
+	if err := database.DB.Where("id IN ? AND is_hidden = false", productIDs).Find(&products).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load products"})
 		return
 	}
@@ -189,7 +189,15 @@ func GetRecommendations(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, buildProductResponses(products))
+	// Filter hidden products from recommendations manually since recommendation service might return them
+	visibleProducts := make([]models.Product, 0, len(products))
+	for _, p := range products {
+		if !p.IsHidden {
+			visibleProducts = append(visibleProducts, p)
+		}
+	}
+
+	c.JSON(http.StatusOK, buildProductResponses(visibleProducts))
 }
 
 func GetProduct(c *gin.Context) {
@@ -211,7 +219,7 @@ func GetProduct(c *gin.Context) {
 		return
 	}
 
-	if product.ID == 0 {
+	if product.ID == 0 || product.IsHidden {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 		return
 	}
@@ -288,7 +296,15 @@ func GetTrendingProducts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, buildProductResponses(products))
+	// Filter hidden
+	visibleProducts := make([]models.Product, 0, len(products))
+	for _, p := range products {
+		if !p.IsHidden {
+			visibleProducts = append(visibleProducts, p)
+		}
+	}
+
+	c.JSON(http.StatusOK, buildProductResponses(visibleProducts))
 }
 
 func buildProductResponses(products []models.Product) []ProductResponse {
