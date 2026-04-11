@@ -67,7 +67,7 @@ type SellerQualityResponse struct {
 	PhotoURL       string                    `json:"photo_url"`
 	FirstName      string                    `json:"first_name"`
 	LastName       string                    `json:"last_name"`
-	DisplayName    string                    `json:"store_name"`
+	DisplayName    string                    `json:"display_name"`
 	City           string                    `json:"city"`
 	Address        string                    `json:"address"`
 	Categories     string                    `json:"categories"`
@@ -746,7 +746,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		if lastName := c.PostForm("last_name"); lastName != "" {
 			seller.LastName = lastName
 		}
-		if DisplayName := c.PostForm("store_name"); DisplayName != "" {
+		if DisplayName := c.PostForm("display_name"); DisplayName != "" {
 			seller.DisplayName = DisplayName
 		}
 		if city := c.PostForm("city"); city != "" {
