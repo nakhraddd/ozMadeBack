@@ -31,16 +31,6 @@ func GetProfile(c *gin.Context) {
 
 func UpdateProfile(c *gin.Context) {
 	userID := c.GetUint("userID")
-	var input struct {
-		Name       string   `json:"name"`
-		Address    string   `json:"address"`
-		AddressLat *float64 `json:"address_lat"`
-		AddressLng *float64 `json:"address_lng"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -48,22 +38,55 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if input.Name != "" {
-		user.Name = input.Name
+	var input struct {
+		Name       *string  `json:"name"`
+		Address    *string  `json:"address"`
+		AddressLat *float64 `json:"address_lat"`
+		AddressLng *float64 `json:"address_lng"`
+		PhotoUrl   *string  `json:"photo_url"`
+		FCMToken   *string  `json:"fcm_token"`
 	}
-	if input.Address != "" {
-		user.Address = input.Address
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-	if (input.AddressLat == nil) != (input.AddressLng == nil) {
+
+	updates := make(map[string]interface{})
+	if input.Name != nil {
+		updates["name"] = *input.Name
+	}
+	if input.Address != nil {
+		updates["address"] = *input.Address
+	}
+	if input.PhotoUrl != nil {
+		updates["photo_url"] = *input.PhotoUrl
+	}
+	if input.FCMToken != nil {
+		updates["fcm_token"] = *input.FCMToken
+	}
+
+	if input.AddressLat != nil && input.AddressLng != nil {
+		updates["address_lat"] = *input.AddressLat
+		updates["address_lng"] = *input.AddressLng
+	} else if (input.AddressLat == nil) != (input.AddressLng == nil) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "address_lat and address_lng must be provided together"})
 		return
 	}
-	if input.AddressLat != nil && input.AddressLng != nil {
-		user.AddressLat = input.AddressLat
-		user.AddressLng = input.AddressLng
+
+	if len(updates) > 0 {
+		if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+			return
+		}
 	}
 
-	database.DB.Save(&user)
+	// Fetch updated user to return
+	database.DB.First(&user, userID)
+	if user.PhotoUrl != "" {
+		user.PhotoUrl, _ = services.GenerateSignedURLForUser(user.PhotoUrl)
+	}
+
 	c.JSON(http.StatusOK, user)
 }
 
