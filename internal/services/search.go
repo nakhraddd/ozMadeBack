@@ -24,6 +24,8 @@ import (
 var ProductSearch *ProductSearchService
 
 const defaultSearchTimeout = 5 * time.Second
+const bootstrapRetryDelay = 3 * time.Second
+const bootstrapRetryCount = 10
 
 type ProductSearchService struct {
 	baseURL    string
@@ -93,18 +95,30 @@ func BootstrapProductIndex(ctx context.Context) {
 		return
 	}
 
-	if err := ProductSearch.EnsureIndex(ctx); err != nil {
-		log.Printf("failed to ensure Elasticsearch index: %v", err)
-		return
-	}
-
 	syncOnStartup := strings.EqualFold(config.GetEnv("ELASTICSEARCH_SYNC_ON_STARTUP", "true"), "true")
-	if !syncOnStartup {
-		return
-	}
+	for attempt := 1; attempt <= bootstrapRetryCount; attempt++ {
+		if err := ProductSearch.EnsureIndex(ctx); err != nil {
+			log.Printf("failed to ensure Elasticsearch index (attempt %d/%d): %v", attempt, bootstrapRetryCount, err)
+		} else {
+			if !syncOnStartup {
+				return
+			}
+			if err := ProductSearch.ReindexAll(ctx); err != nil {
+				log.Printf("failed to sync products to Elasticsearch (attempt %d/%d): %v", attempt, bootstrapRetryCount, err)
+			} else {
+				return
+			}
+		}
 
-	if err := ProductSearch.ReindexAll(ctx); err != nil {
-		log.Printf("failed to sync products to Elasticsearch: %v", err)
+		if attempt == bootstrapRetryCount {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(bootstrapRetryDelay):
+		}
 	}
 }
 
@@ -324,11 +338,18 @@ func (s *ProductSearchService) buildSearchBody(params ProductSearchParams) ([]by
 		})
 	}
 
-	must := make([]map[string]any, 0, 1)
+	should := make([]map[string]any, 0, 2)
 	if params.Query != "" {
-		must = append(must, map[string]any{
+		should = append(should, map[string]any{
 			"multi_match": map[string]any{
 				"query":  params.Query,
+				"fields": []string{"title^4", "description^2", "categories^3", "type^2", "composition", "address"},
+			},
+		})
+		should = append(should, map[string]any{
+			"multi_match": map[string]any{
+				"query":  params.Query,
+				"type":   "bool_prefix",
 				"fields": []string{"title^4", "description^2", "categories^3", "type^2", "composition", "address"},
 			},
 		})
@@ -339,8 +360,9 @@ func (s *ProductSearchService) buildSearchBody(params ProductSearchParams) ([]by
 			"filter": filter,
 		},
 	}
-	if len(must) > 0 {
-		query["bool"].(map[string]any)["must"] = must
+	if len(should) > 0 {
+		query["bool"].(map[string]any)["should"] = should
+		query["bool"].(map[string]any)["minimum_should_match"] = 1
 	}
 
 	payload := map[string]any{

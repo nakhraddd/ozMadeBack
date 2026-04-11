@@ -36,8 +36,11 @@ func TestBuildSearchBodyIncludesQueryAndFilters(t *testing.T) {
 	}
 
 	query := payload["query"].(map[string]any)["bool"].(map[string]any)
-	if len(query["must"].([]any)) == 0 {
-		t.Fatal("expected full-text query in must clause")
+	if len(query["should"].([]any)) == 0 {
+		t.Fatal("expected full-text query in should clause")
+	}
+	if query["minimum_should_match"].(float64) != 1 {
+		t.Fatalf("expected minimum_should_match 1, got %v", query["minimum_should_match"])
 	}
 	if len(query["filter"].([]any)) != 3 {
 		t.Fatalf("expected 3 filters, got %d", len(query["filter"].([]any)))
@@ -62,7 +65,7 @@ func TestBuildSearchBodyUsesDefaults(t *testing.T) {
 	}
 
 	query := payload["query"].(map[string]any)["bool"].(map[string]any)
-	if _, ok := query["must"]; ok {
-		t.Fatal("did not expect must clause for empty search")
+	if _, ok := query["should"]; ok {
+		t.Fatal("did not expect should clause for empty search")
 	}
 }
