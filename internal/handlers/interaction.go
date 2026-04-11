@@ -226,7 +226,7 @@ func PostComment(c *gin.Context) {
 		return
 	}
 
-	go updateAverageRating(uint(productID))
+	go updateProductInteractionStats(uint(productID))
 
 	c.JSON(http.StatusCreated, comment)
 }
@@ -258,19 +258,28 @@ func ReportProduct(c *gin.Context) {
 	c.Status(http.StatusCreated)
 }
 
-func updateAverageRating(productID uint) {
+func updateProductInteractionStats(productID uint) {
 	var comments []models.Comment
 	database.DB.Where("product_id = ?", productID).Find(&comments)
 
 	var totalRating float64
+	var reviewsCount int
 	for _, c := range comments {
 		totalRating += c.Rating
+		if c.Text != "" {
+			reviewsCount++
+		}
 	}
 
+	ratingsCount := len(comments)
 	avgRating := 0.0
-	if len(comments) > 0 {
-		avgRating = totalRating / float64(len(comments))
+	if ratingsCount > 0 {
+		avgRating = totalRating / float64(ratingsCount)
 	}
 
-	database.DB.Model(&models.Product{}).Where("id = ?", productID).Update("average_rating", avgRating)
+	database.DB.Model(&models.Product{}).Where("id = ?", productID).Updates(map[string]interface{}{
+		"average_rating": avgRating,
+		"ratings_count":  ratingsCount,
+		"reviews_count":  reviewsCount,
+	})
 }
