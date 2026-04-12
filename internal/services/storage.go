@@ -39,6 +39,11 @@ func GenerateSignedURL(objectName string) (string, error) {
 		objectName = "products/" + objectName
 	}
 
+	// Support object names that might already contain the signed URL parameters (though unlikely here)
+	if idx := strings.Index(objectName, "?"); idx != -1 {
+		objectName = objectName[:idx]
+	}
+
 	return GCS.GenerateSignedURL(objectName, "GET", 15*time.Minute, "")
 }
 
