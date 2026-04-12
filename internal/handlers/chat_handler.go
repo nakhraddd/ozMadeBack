@@ -223,8 +223,16 @@ func InitiateChat(c *gin.Context) {
 	database.DB.First(&buyer, userID)
 
 	chat.ProductName = product.Title
-	url, _ := services.GenerateSignedURL(product.ImageName)
-	chat.ProductImage = url
+
+	displayImage := product.ImageName
+	if displayImage == "" && len(product.Images) > 0 {
+		displayImage = product.Images[0]
+	}
+	if displayImage != "" {
+		url, _ := services.GenerateSignedURL(displayImage)
+		chat.ProductImage = url
+	}
+
 	chat.SellerName = resolveSellerDisplayNameForChat(seller)
 	chat.BuyerName = buyer.Name
 	chat.SellerPhoto, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
@@ -271,8 +279,15 @@ func GetChats(c *gin.Context) {
 			var product models.Product
 			if err := database.DB.First(&product, chats[i].ProductID).Error; err == nil {
 				chats[i].ProductName = product.Title
-				url, _ := services.GenerateSignedURL(product.ImageName)
-				chats[i].ProductImage = url
+
+				displayImage := product.ImageName
+				if displayImage == "" && len(product.Images) > 0 {
+					displayImage = product.Images[0]
+				}
+				if displayImage != "" {
+					url, _ := services.GenerateSignedURL(displayImage)
+					chats[i].ProductImage = url
+				}
 			}
 		}
 
