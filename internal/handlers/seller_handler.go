@@ -997,7 +997,7 @@ func serializeDeliverySettings(seller models.Seller) gin.H {
 func (h *SellerHandler) GetSellerOrders(c *gin.Context) {
 	userID := c.GetUint("userID")
 	var seller models.Seller
-	if err := database.DB.Where("user_id = ?", userID).First(&seller).Error; err != nil {
+	if err := database.DB.Preload("User").Where("user_id = ?", userID).First(&seller).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
 		return
 	}
