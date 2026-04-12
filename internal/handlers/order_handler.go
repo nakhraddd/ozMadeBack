@@ -218,7 +218,12 @@ func GetCheckoutOptions(c *gin.Context) {
 		}
 	}
 
-	productImageUrl, _ := services.GenerateSignedURL(product.ImageName)
+	displayImage := product.ImageName
+	if displayImage == "" && len(product.Images) > 0 {
+		displayImage = product.Images[0]
+	}
+
+	productImageUrl, _ := services.GenerateSignedURL(displayImage)
 
 	c.JSON(http.StatusOK, dto.ProductCheckoutOptionsResponse{
 		ProductID:            product.ID,
@@ -360,7 +365,11 @@ func calculateDistanceKm(lat1, lng1, lat2, lng2 float64) float64 {
 }
 
 func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) dto.OrderDto {
-	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
+	displayImage := product.ImageName
+	if displayImage == "" && len(product.Images) > 0 {
+		displayImage = product.Images[0]
+	}
+	imageUrl, _ := services.GenerateSignedURL(displayImage)
 
 	res := dto.OrderDto{
 		ID:                  order.ID,
