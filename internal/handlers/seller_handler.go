@@ -349,7 +349,7 @@ func (h *SellerHandler) CreateProduct(c *gin.Context) {
 	}
 
 	var input struct {
-		Name        string   `json:"name"`
+		Title       string   `json:"title"`
 		Description string   `json:"description"`
 		Price       float64  `json:"price"`
 		Type        string   `json:"type"`
@@ -373,7 +373,7 @@ func (h *SellerHandler) CreateProduct(c *gin.Context) {
 
 	product := models.Product{
 		SellerID:    seller.ID,
-		Title:       input.Name,
+		Title:       input.Title,
 		Description: input.Description,
 		Cost:        input.Price,
 		Type:        input.Type,
