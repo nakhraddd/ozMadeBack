@@ -15,29 +15,29 @@ import (
 )
 
 type OrderDto struct {
-	ID                  uint      `json:"ID"`
-	Status              string    `json:"Status"`
-	CreatedAt           time.Time `json:"CreatedAt"`
-	ProductID           uint      `json:"ProductID"`
-	ProductTitle        string    `json:"ProductTitle"`
-	ProductImageUrl     string    `json:"ProductImageUrl"`
-	Price               float64   `json:"Price"`
-	Quantity            int       `json:"Quantity"`
-	TotalCost           float64   `json:"TotalCost"`
-	SellerID            uint      `json:"SellerID"`
-	SellerName          string    `json:"SellerName"`
-	DeliveryType        string    `json:"DeliveryType"`
-	PickupAddress       *string   `json:"PickupAddress"`
-	PickupTime          *string   `json:"PickupTime"`
-	ZoneCenterLat       *float64  `json:"ZoneCenterLat"`
-	ZoneCenterLng       *float64  `json:"ZoneCenterLng"`
-	ZoneRadiusKm        *float64  `json:"ZoneRadiusKm"`
-	ZoneCenterAddress   *string   `json:"ZoneCenterAddress"`
-	ShippingAddressText *string   `json:"ShippingAddressText"`
-	ShippingLat         *float64  `json:"ShippingLat"`
-	ShippingLng         *float64  `json:"ShippingLng"`
-	ShippingComment     *string   `json:"ShippingComment"`
-	ConfirmCode         *string   `json:"ConfirmCode"`
+	ID                  uint      `json:"id"`
+	Status              string    `json:"status"`
+	CreatedAt           time.Time `json:"created_at"`
+	ProductID           uint      `json:"product_id"`
+	ProductTitle        string    `json:"product_title"`
+	ProductImageUrl     string    `json:"product_image_url"`
+	Price               float64   `json:"price"`
+	Quantity            int       `json:"quantity"`
+	TotalCost           float64   `json:"total_cost"`
+	SellerID            uint      `json:"seller_id"`
+	SellerName          string    `json:"seller_name"`
+	DeliveryType        string    `json:"delivery_type"`
+	PickupAddress       *string   `json:"pickup_address"`
+	PickupTime          *string   `json:"pickup_time"`
+	ZoneCenterLat       *float64  `json:"zone_center_lat"`
+	ZoneCenterLng       *float64  `json:"zone_center_lng"`
+	ZoneRadiusKm        *float64  `json:"zone_radius_km"`
+	ZoneCenterAddress   *string   `json:"zone_center_address"`
+	ShippingAddressText *string   `json:"shipping_address_text"`
+	ShippingLat         *float64  `json:"shipping_lat"`
+	ShippingLng         *float64  `json:"shipping_lng"`
+	ShippingComment     *string   `json:"shipping_comment"`
+	ConfirmCode         *string   `json:"confirm_code"`
 }
 
 type CheckoutOptionDto struct {
@@ -288,10 +288,13 @@ func GetCheckoutOptions(c *gin.Context) {
 		}
 	}
 
+	productImageUrl, _ := services.GenerateSignedURL(product.ImageName)
+
 	c.JSON(http.StatusOK, gin.H{
 		"product_id":              product.ID,
 		"product_title":           product.Title,
 		"product_price":           product.Cost,
+		"product_image_url":       productImageUrl,
 		"seller_id":               seller.ID,
 		"seller_name":             resolveSellerDisplayName(seller),
 		"buyer_saved_address":     userAddress,
@@ -455,7 +458,7 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 		Quantity:            order.Quantity,
 		TotalCost:           order.TotalCost,
 		SellerID:            seller.ID,
-		SellerName:          seller.User.Name, // Or seller name field
+		SellerName:          resolveSellerDisplayName(seller),
 		DeliveryType:        order.DeliveryType,
 		ShippingAddressText: order.ShippingAddressText,
 		ShippingLat:         order.ShippingLat,
@@ -516,6 +519,9 @@ func buildSellerDeliveryDescription(seller models.Seller) string {
 }
 
 func resolveSellerDisplayName(seller models.Seller) string {
+	if seller.DisplayName != "" {
+		return seller.DisplayName
+	}
 	if seller.User.Name != "" {
 		return seller.User.Name
 	}
