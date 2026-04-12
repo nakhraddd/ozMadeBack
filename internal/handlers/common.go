@@ -2,28 +2,29 @@ package handlers
 
 import (
 	"net/http"
+	"ozMadeBack/internal/dto"
 
 	"github.com/gin-gonic/gin"
 )
 
 func GetCategories(c *gin.Context) {
-	categories := []gin.H{
-		{"id": "food", "title": "Еда", "icon_url": nil},
-		{"id": "art", "title": "Искусство", "icon_url": nil},
-		{"id": "clothing", "title": "Одежда", "icon_url": nil},
-		{"id": "electronics", "title": "Электроника", "icon_url": nil},
-		{"id": "home", "title": "Дом", "icon_url": nil},
+	categories := []dto.CategoryDto{
+		{ID: "food", Title: "Еда", IconURL: nil},
+		{ID: "art", Title: "Искусство", IconURL: nil},
+		{ID: "clothing", Title: "Одежда", IconURL: nil},
+		{ID: "electronics", Title: "Электроника", IconURL: nil},
+		{ID: "home", Title: "Дом", IconURL: nil},
 	}
 	c.JSON(http.StatusOK, categories)
 }
 
 func GetAds(c *gin.Context) {
-	ads := []gin.H{
+	ads := []dto.AdDto{
 		{
-			"id":        "1",
-			"image_url": "https://storage.googleapis.com/ozmade-bucket/ads/ad1.jpg", // Example URL
-			"title":     "Скидки",
-			"deeplink":  "ozmade://discounts",
+			ID:       "1",
+			ImageURL: "https://storage.googleapis.com/ozmade-bucket/ads/ad1.jpg",
+			Title:    "Скидки",
+			Deeplink: "ozmade://discounts",
 		},
 	}
 	c.JSON(http.StatusOK, ads)

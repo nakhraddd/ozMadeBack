@@ -3,35 +3,25 @@ package handlers
 import (
 	"net/http"
 	"ozMadeBack/internal/database"
+	"ozMadeBack/internal/dto"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-type ReviewDto struct {
-	ID        uint      `json:"id"`
-	UserID    uint      `json:"user_id"`
-	UserName  string    `json:"user_name"`
-	UserPhoto string    `json:"user_photo"`
-	Rating    float64   `json:"rating"`
-	CreatedAt time.Time `json:"created_at"`
-	Text      string    `json:"text"`
-}
 
 func GetProductReviews(c *gin.Context) {
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid product ID"})
 		return
 	}
 
 	var product models.Product
 	if err := database.DB.First(&product, productID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Product not found"})
 		return
 	}
 
@@ -40,7 +30,7 @@ func GetProductReviews(c *gin.Context) {
 		Where("product_id = ?", productID).
 		Order("created_at desc").Find(&comments)
 
-	reviewDtos := make([]ReviewDto, 0, len(comments))
+	reviewDtos := make([]dto.ReviewDto, 0, len(comments))
 	for _, comment := range comments {
 		name := comment.User.Name
 		if name == "" {
@@ -52,7 +42,7 @@ func GetProductReviews(c *gin.Context) {
 
 		photo, _ := services.GenerateSignedURLForUser(comment.User.PhotoUrl)
 
-		reviewDtos = append(reviewDtos, ReviewDto{
+		reviewDtos = append(reviewDtos, dto.ReviewDto{
 			ID:        comment.ID,
 			UserID:    comment.UserID,
 			UserName:  name,
@@ -69,28 +59,28 @@ func GetProductReviews(c *gin.Context) {
 	var ratingsCount int64
 	database.DB.Model(&models.Comment{}).Where("product_id = ?", productID).Count(&ratingsCount)
 
-	c.JSON(http.StatusOK, gin.H{
-		"summary": gin.H{
-			"product_id":     productID,
-			"average_rating": product.AverageRating,
-			"ratings_count":  ratingsCount,
-			"reviews_count":  reviewsCount,
-		},
-		"reviews": reviewDtos,
-	})
+	response := dto.ProductReviewsResponse{
+		Reviews: reviewDtos,
+	}
+	response.Summary.ProductID = uint(productID)
+	response.Summary.AverageRating = product.AverageRating
+	response.Summary.RatingsCount = ratingsCount
+	response.Summary.ReviewsCount = reviewsCount
+
+	c.JSON(http.StatusOK, response)
 }
 
 func GetSellerReviews(c *gin.Context) {
 	sellerIDStr := c.Param("id")
 	sellerID, err := strconv.ParseUint(sellerIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid seller ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid seller ID"})
 		return
 	}
 
 	var seller models.Seller
 	if err := database.DB.Preload("User").First(&seller, sellerID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Seller not found"})
 		return
 	}
 
@@ -104,7 +94,7 @@ func GetSellerReviews(c *gin.Context) {
 			Order("created_at desc").Find(&comments)
 	}
 
-	reviewDtos := make([]interface{}, 0, len(comments))
+	reviewDtos := make([]dto.ReviewDto, 0, len(comments))
 	var totalRating float64
 	for _, comment := range comments {
 		totalRating += comment.Rating
@@ -118,16 +108,16 @@ func GetSellerReviews(c *gin.Context) {
 		}
 		photo, _ := services.GenerateSignedURLForUser(comment.User.PhotoUrl)
 
-		reviewDtos = append(reviewDtos, gin.H{
-			"id":            comment.ID,
-			"user_id":       comment.UserID,
-			"user_name":     name,
-			"user_photo":    photo,
-			"product_id":    comment.ProductID,
-			"product_title": comment.Product.Title,
-			"rating":        comment.Rating,
-			"created_at":    comment.CreatedAt,
-			"text":          comment.Text,
+		reviewDtos = append(reviewDtos, dto.ReviewDto{
+			ID:           comment.ID,
+			UserID:       comment.UserID,
+			UserName:     name,
+			UserPhoto:    photo,
+			ProductID:    comment.ProductID,
+			ProductTitle: comment.Product.Title,
+			Rating:       comment.Rating,
+			CreatedAt:    comment.CreatedAt,
+			Text:         comment.Text,
 		})
 	}
 
@@ -146,16 +136,16 @@ func GetSellerReviews(c *gin.Context) {
 		sellerName = seller.User.PhoneNumber
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"header": gin.H{
-			"seller_id":      sellerID,
-			"seller_name":    sellerName,
-			"reviews_count":  reviewsWithTextCount,
-			"average_rating": avgRating,
-			"ratings_count":  len(comments),
-		},
-		"reviews": reviewDtos,
-	})
+	response := dto.SellerReviewsResponse{
+		Reviews: reviewDtos,
+	}
+	response.Header.SellerID = sellerID
+	response.Header.SellerName = sellerName
+	response.Header.ReviewsCount = reviewsWithTextCount
+	response.Header.AverageRating = avgRating
+	response.Header.RatingsCount = len(comments)
+
+	c.JSON(http.StatusOK, response)
 }
 
 func PostComment(c *gin.Context) {
@@ -163,16 +153,13 @@ func PostComment(c *gin.Context) {
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid product ID"})
 		return
 	}
 
-	var input struct {
-		Rating float64 `json:"rating"`
-		Text   string  `json:"text"`
-	}
+	var input dto.PostCommentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -183,7 +170,7 @@ func PostComment(c *gin.Context) {
 		Text:      input.Text,
 	}
 	if err := database.DB.Create(&comment).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to post comment"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to post comment"})
 		return
 	}
 
@@ -197,15 +184,13 @@ func ReportProduct(c *gin.Context) {
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid product ID"})
 		return
 	}
 
-	var input struct {
-		Reason string `json:"reason"`
-	}
+	var input dto.ReportProductInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 

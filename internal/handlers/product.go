@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"ozMadeBack/config"
 	"ozMadeBack/internal/database"
+	"ozMadeBack/internal/dto"
 	"ozMadeBack/internal/models"
 	productservice "ozMadeBack/internal/service/product"
 	recommendationservice "ozMadeBack/internal/service/recommendation"
@@ -16,13 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
-
-type ProductResponse struct {
-	models.Product
-	Delivery  gin.H  `json:"delivery"`
-	Seller    gin.H  `json:"seller"`
-	ShareLink string `json:"share_link"`
-}
 
 func GetProducts(c *gin.Context) {
 	var products []models.Product
@@ -38,7 +32,6 @@ func GetProducts(c *gin.Context) {
 
 	query.Limit(limit).Offset(offset).Find(&products)
 
-	// Fetch sellers
 	var sellerIDs []uint
 	for _, p := range products {
 		sellerIDs = append(sellerIDs, p.SellerID)
@@ -55,9 +48,8 @@ func GetProducts(c *gin.Context) {
 
 	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade-applink.vercel.app")
 
-	var response []ProductResponse
+	response := make([]dto.ProductResponse, 0)
 	for i := range products {
-		// Generate signed URL for main image
 		if products[i].ImageName != "" {
 			objectName := products[i].ImageName
 			if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
@@ -67,7 +59,6 @@ func GetProducts(c *gin.Context) {
 			products[i].ImageName = url
 		}
 
-		// Generate signed URLs for gallery images
 		for j, imgName := range products[i].Images {
 			if imgName != "" {
 				objectName := imgName
@@ -83,7 +74,7 @@ func GetProducts(c *gin.Context) {
 		delivery, sellerInfo, sellerName := buildSellerContext(seller, exists)
 		products[i].SellerName = sellerName
 
-		response = append(response, ProductResponse{
+		response = append(response, dto.ProductResponse{
 			Product:   products[i],
 			Delivery:  delivery,
 			Seller:    sellerInfo,
@@ -97,13 +88,13 @@ func GetProducts(c *gin.Context) {
 func SearchProducts(c *gin.Context) {
 	minCost, err := services.ParseSearchFloat(c.Query("min_cost"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid min_cost"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid min_cost"})
 		return
 	}
 
 	maxCost, err := services.ParseSearchFloat(c.Query("max_cost"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid max_cost"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid max_cost"})
 		return
 	}
 
@@ -136,18 +127,18 @@ func SearchProducts(c *gin.Context) {
 
 	productIDs, err := searchService.SearchProducts(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search products"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to search products"})
 		return
 	}
 
 	if len(productIDs) == 0 {
-		c.JSON(http.StatusOK, []ProductResponse{})
+		c.JSON(http.StatusOK, []dto.ProductResponse{})
 		return
 	}
 
 	var products []models.Product
 	if err := database.DB.Where("id IN ? AND is_hidden = false", productIDs).Find(&products).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load products"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to load products"})
 		return
 	}
 
@@ -171,7 +162,7 @@ func SearchProducts(c *gin.Context) {
 func GetRecommendations(c *gin.Context) {
 	userID := c.GetUint("userID")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "User not authenticated"})
 		return
 	}
 
@@ -185,12 +176,11 @@ func GetRecommendations(c *gin.Context) {
 
 	products, err := recommendationservice.NewDefaultService().GetRecommendationsForUser(c.Request.Context(), userID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch recommendations"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to fetch recommendations"})
 		return
 	}
 
-	// Filter hidden products from recommendations manually since recommendation service might return them
-	visibleProducts := make([]models.Product, 0, len(products))
+	visibleProducts := make([]models.Product, 0)
 	for _, p := range products {
 		if !p.IsHidden {
 			visibleProducts = append(visibleProducts, p)
@@ -204,27 +194,26 @@ func GetProduct(c *gin.Context) {
 	id := c.Param("id")
 	productID, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid product ID"})
 		return
 	}
 
 	product, err := productservice.NewDefaultService().GetProduct(c.Request.Context(), uint(productID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Product not found"})
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to fetch product"})
 		return
 	}
 
 	if product.ID == 0 || product.IsHidden {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Product not found"})
 		return
 	}
 
-	// Generate signed URL for main image
 	if product.ImageName != "" {
 		objectName := product.ImageName
 		if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") {
@@ -234,7 +223,6 @@ func GetProduct(c *gin.Context) {
 		product.ImageName = url
 	}
 
-	// Generate signed URLs for gallery images
 	for j, imgName := range product.Images {
 		if imgName != "" {
 			objectName := imgName
@@ -246,7 +234,6 @@ func GetProduct(c *gin.Context) {
 		}
 	}
 
-	// Sign user photos in comments and replies
 	for i := range product.Comments {
 		if product.Comments[i].User.PhotoUrl != "" {
 			photo, _ := services.GenerateSignedURLForUser(product.Comments[i].User.PhotoUrl)
@@ -254,7 +241,6 @@ func GetProduct(c *gin.Context) {
 		}
 	}
 
-	// Fetch seller
 	var seller models.Seller
 	delivery := emptyDelivery()
 	sellerInfo := emptySellerInfo()
@@ -265,7 +251,7 @@ func GetProduct(c *gin.Context) {
 
 	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade-applink.vercel.app")
 
-	response := ProductResponse{
+	response := dto.ProductResponse{
 		Product:   product,
 		Delivery:  delivery,
 		Seller:    sellerInfo,
@@ -279,18 +265,18 @@ func ViewProduct(c *gin.Context) {
 	id := c.Param("id")
 	productID, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid product ID"})
 		return
 	}
 
 	err = productservice.NewDefaultService().IncrementView(c.Request.Context(), uint(productID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Product not found"})
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product view"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to update product view"})
 		return
 	}
 
@@ -300,12 +286,11 @@ func ViewProduct(c *gin.Context) {
 func GetTrendingProducts(c *gin.Context) {
 	products, err := productservice.NewDefaultService().GetTrendingProducts(c.Request.Context(), 20)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch trending products"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to fetch trending products"})
 		return
 	}
 
-	// Filter hidden
-	visibleProducts := make([]models.Product, 0, len(products))
+	visibleProducts := make([]models.Product, 0)
 	for _, p := range products {
 		if !p.IsHidden {
 			visibleProducts = append(visibleProducts, p)
@@ -315,9 +300,9 @@ func GetTrendingProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, buildProductResponses(visibleProducts))
 }
 
-func buildProductResponses(products []models.Product) []ProductResponse {
+func buildProductResponses(products []models.Product) []dto.ProductResponse {
 	if len(products) == 0 {
-		return []ProductResponse{}
+		return []dto.ProductResponse{}
 	}
 
 	var sellerIDs []uint
@@ -335,7 +320,7 @@ func buildProductResponses(products []models.Product) []ProductResponse {
 	}
 
 	appLinkBase := config.GetEnv("APP_LINK_BASE_URL", "https://ozmade-applink.vercel.app")
-	response := make([]ProductResponse, 0, len(products))
+	response := make([]dto.ProductResponse, 0)
 
 	for i := range products {
 		if products[i].ImageName != "" {
@@ -362,7 +347,7 @@ func buildProductResponses(products []models.Product) []ProductResponse {
 		delivery, sellerInfo, sellerName := buildSellerContext(seller, exists)
 		products[i].SellerName = sellerName
 
-		response = append(response, ProductResponse{
+		response = append(response, dto.ProductResponse{
 			Product:   products[i],
 			Delivery:  delivery,
 			Seller:    sellerInfo,

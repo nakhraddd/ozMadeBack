@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"ozMadeBack/internal/database"
+	"ozMadeBack/internal/dto"
 	"ozMadeBack/internal/models"
 	productservice "ozMadeBack/internal/service/product"
 	"ozMadeBack/internal/services"
@@ -14,85 +15,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type OrderDto struct {
-	ID                  uint      `json:"id"`
-	Status              string    `json:"status"`
-	CreatedAt           time.Time `json:"created_at"`
-	ProductID           uint      `json:"product_id"`
-	ProductTitle        string    `json:"product_title"`
-	ProductImageUrl     string    `json:"product_image_url"`
-	Price               float64   `json:"price"`
-	Quantity            int       `json:"quantity"`
-	TotalCost           float64   `json:"total_cost"`
-	SellerID            uint      `json:"seller_id"`
-	SellerName          string    `json:"seller_name"`
-	DeliveryType        string    `json:"delivery_type"`
-	PickupAddress       *string   `json:"pickup_address"`
-	PickupTime          *string   `json:"pickup_time"`
-	ZoneCenterLat       *float64  `json:"zone_center_lat"`
-	ZoneCenterLng       *float64  `json:"zone_center_lng"`
-	ZoneRadiusKm        *float64  `json:"zone_radius_km"`
-	ZoneCenterAddress   *string   `json:"zone_center_address"`
-	ShippingAddressText *string   `json:"shipping_address_text"`
-	ShippingLat         *float64  `json:"shipping_lat"`
-	ShippingLng         *float64  `json:"shipping_lng"`
-	ShippingComment     *string   `json:"shipping_comment"`
-	ConfirmCode         *string   `json:"confirm_code"`
-}
-
-type CheckoutOptionDto struct {
-	Code           string   `json:"code"`
-	Title          string   `json:"title"`
-	Enabled        bool     `json:"enabled"`
-	RequiresFields []string `json:"requires_fields"`
-	Description    string   `json:"description"`
-}
-
 func CreateOrder(c *gin.Context) {
 	userID := c.GetUint("userID")
 
-	var input struct {
-		ProductID           uint     `json:"product_id"`
-		Quantity            int      `json:"quantity"`
-		DeliveryType        string   `json:"delivery_type"`
-		ShippingAddressText *string  `json:"shipping_address_text"`
-		ShippingLat         *float64 `json:"shipping_lat"`
-		ShippingLng         *float64 `json:"shipping_lng"`
-		ShippingComment     *string  `json:"shipping_comment"`
-	}
-
+	var input dto.CreateOrderInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if input.Quantity < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Quantity must be at least 1"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	var buyer models.User
 	if err := database.DB.First(&buyer, userID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "User not found"})
 		return
 	}
 
-	// 2. Find product
 	var product models.Product
 	if err := database.DB.First(&product, input.ProductID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Product not found"})
 		return
 	}
 
-	// 3. Identify seller and fetch delivery settings
 	var seller models.Seller
 	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Seller not found"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Seller not found"})
 		return
 	}
 
 	if seller.UserID == userID {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "You cannot order your own product"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "You cannot order your own product"})
 		return
 	}
 
@@ -113,7 +64,6 @@ func CreateOrder(c *gin.Context) {
 		finalShippingLng = buyer.AddressLng
 	}
 
-	// 7. Verify delivery type
 	validDelivery := false
 	switch input.DeliveryType {
 	case models.DeliveryTypePickup:
@@ -124,15 +74,15 @@ func CreateOrder(c *gin.Context) {
 		if seller.FreeDeliveryEnabled {
 			validDelivery = true
 			if finalShippingAddressText == nil || *finalShippingAddressText == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_address_text is required for MY_DELIVERY"})
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "shipping_address_text is required for MY_DELIVERY"})
 				return
 			}
 			if !hasValidCoordinates(finalShippingLat, finalShippingLng) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_lat and shipping_lng are required for MY_DELIVERY"})
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "shipping_lat and shipping_lng are required for MY_DELIVERY"})
 				return
 			}
 			if !hasValidCoordinates(&seller.DeliveryCenterLat, &seller.DeliveryCenterLng) || seller.DeliveryRadiusKm <= 0 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Seller delivery settings are incomplete"})
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Seller delivery settings are incomplete"})
 				return
 			}
 
@@ -155,28 +105,25 @@ func CreateOrder(c *gin.Context) {
 		if seller.IntercityEnabled {
 			validDelivery = true
 			if finalShippingAddressText == nil || *finalShippingAddressText == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "shipping_address_text is required for INTERCITY"})
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "shipping_address_text is required for INTERCITY"})
 				return
 			}
 		}
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delivery_type"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid delivery_type"})
 		return
 	}
 
 	if !validDelivery {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Selected delivery type is not available for this seller"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Selected delivery type is not available for this seller"})
 		return
 	}
 
-	// 9. Calculate costs
 	totalCost := product.Cost * float64(input.Quantity)
 
-	// 10. Create order
-	// Generate a handoff code for manual completion flows.
 	confirmCode := ""
 	if input.DeliveryType == models.DeliveryTypePickup || input.DeliveryType == models.DeliveryTypeMyDelivery {
-		confirmCode = strconv.Itoa(1000 + rand.Intn(9000)) // Simple 4 digit code
+		confirmCode = strconv.Itoa(1000 + rand.Intn(9000))
 	}
 
 	order := models.Order{
@@ -195,57 +142,40 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	if err := database.DB.Create(&order).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to create order"})
 		return
 	}
 
-	// Increment orders count for product
 	_ = productservice.NewDefaultService().IncrementOrderCount(c.Request.Context(), product.ID)
 
 	orderID := order.ID
-	_ = services.CreateNotification(
-		userID,
-		"Order created",
-		"Your order has been created and is waiting for seller confirmation.",
-		"buyer_order_created",
-		&orderID,
-		nil,
-	)
-	_ = services.CreateNotification(
-		seller.UserID,
-		"New order received",
-		"A buyer has placed a new order for your product.",
-		"seller_new_order",
-		&orderID,
-		nil,
-	)
+	_ = services.CreateNotification(userID, "Order created", "Your order has been created and is waiting for seller confirmation.", "buyer_order_created", &orderID, nil)
+	_ = services.CreateNotification(seller.UserID, "New order received", "A buyer has placed a new order for your product.", "seller_new_order", &orderID, nil)
 
-	// Construct DTO
-	dto := mapOrderToDto(order, product, seller)
-	c.JSON(http.StatusCreated, dto)
+	c.JSON(http.StatusCreated, mapOrderToDto(order, product, seller))
 }
 
 func GetCheckoutOptions(c *gin.Context) {
 	productIDStr := c.Param("id")
 	productID, err := strconv.ParseUint(productIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid product ID"})
 		return
 	}
 
 	var product models.Product
 	if err := database.DB.First(&product, productID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Product not found"})
 		return
 	}
 
 	var seller models.Seller
 	if err := database.DB.Preload("User").First(&seller, product.SellerID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Seller not found"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Seller not found"})
 		return
 	}
 
-	options := []CheckoutOptionDto{
+	options := []dto.CheckoutOptionDto{
 		{
 			Code:           models.DeliveryTypePickup,
 			Title:          "Pickup",
@@ -269,7 +199,7 @@ func GetCheckoutOptions(c *gin.Context) {
 		},
 	}
 
-	enabledOptions := make([]CheckoutOptionDto, 0, len(options))
+	enabledOptions := make([]dto.CheckoutOptionDto, 0)
 	for _, option := range options {
 		if option.Enabled {
 			enabledOptions = append(enabledOptions, option)
@@ -290,18 +220,18 @@ func GetCheckoutOptions(c *gin.Context) {
 
 	productImageUrl, _ := services.GenerateSignedURL(product.ImageName)
 
-	c.JSON(http.StatusOK, gin.H{
-		"product_id":              product.ID,
-		"product_title":           product.Title,
-		"product_price":           product.Cost,
-		"product_image_url":       productImageUrl,
-		"seller_id":               seller.ID,
-		"seller_name":             resolveSellerDisplayName(seller),
-		"buyer_saved_address":     userAddress,
-		"buyer_saved_address_lat": userAddressLat,
-		"buyer_saved_address_lng": userAddressLng,
-		"delivery_options":        enabledOptions,
-		"delivery_summary":        serializeDeliverySettings(seller),
+	c.JSON(http.StatusOK, dto.ProductCheckoutOptionsResponse{
+		ProductID:            product.ID,
+		ProductTitle:         product.Title,
+		ProductPrice:         product.Cost,
+		ProductImageUrl:      productImageUrl,
+		SellerID:             seller.ID,
+		SellerName:           resolveSellerDisplayName(seller),
+		BuyerSavedAddress:    userAddress,
+		BuyerSavedAddressLat: userAddressLat,
+		BuyerSavedAddressLng: userAddressLng,
+		DeliveryOptions:      enabledOptions,
+		DeliverySummary:      serializeDeliverySettings(seller),
 	})
 }
 
@@ -310,16 +240,15 @@ func GetBuyerOrders(c *gin.Context) {
 
 	var orders []models.Order
 	if err := database.DB.Where("user_id = ?", userID).Order("created_at desc").Find(&orders).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch orders"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to fetch orders"})
 		return
 	}
 
-	var dtos []OrderDto
+	dtos := make([]dto.OrderDto, 0)
 	for _, order := range orders {
 		var product models.Product
 		var seller models.Seller
 
-		// Error handling ignored for brevity in loop, but ideally should be handled
 		database.DB.First(&product, order.ProductID)
 		database.DB.Preload("User").First(&seller, product.SellerID)
 
@@ -335,33 +264,26 @@ func CancelOrderBuyer(c *gin.Context) {
 
 	var order models.Order
 	if err := database.DB.Where("id = ? AND user_id = ?", orderID, userID).First(&order).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found or unauthorized"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Order not found or unauthorized"})
 		return
 	}
 
 	if order.Status != models.StatusPendingSeller {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Order cannot be cancelled in current status"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Order cannot be cancelled in current status"})
 		return
 	}
 
 	if err := database.DB.Model(&order).Update("status", models.StatusCancelledByBuyer).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel order"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to cancel order"})
 		return
 	}
 
 	if sellerUserID, err := findSellerUserIDByProductID(order.ProductID); err == nil {
 		orderRecordID := order.ID
-		_ = services.CreateNotification(
-			sellerUserID,
-			"Order cancelled",
-			"The buyer cancelled the order.",
-			"seller_order_cancelled",
-			&orderRecordID,
-			nil,
-		)
+		_ = services.CreateNotification(sellerUserID, "Order cancelled", "The buyer cancelled the order.", "seller_order_cancelled", &orderRecordID, nil)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Order cancelled"})
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "Order cancelled"})
 }
 
 func BuyerReceived(c *gin.Context) {
@@ -370,38 +292,31 @@ func BuyerReceived(c *gin.Context) {
 
 	var order models.Order
 	if err := database.DB.Where("id = ? AND user_id = ?", orderID, userID).First(&order).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found or unauthorized"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Order not found or unauthorized"})
 		return
 	}
 
 	if order.DeliveryType != models.DeliveryTypeIntercity {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Received action only applicable for INTERCITY orders"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Received action only applicable for INTERCITY orders"})
 		return
 	}
 
 	if order.Status != models.StatusReadyOrShipped {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Order is not in shipped state"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Order is not in shipped state"})
 		return
 	}
 
 	if err := database.DB.Model(&order).Update("status", models.StatusCompleted).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to update order status"})
 		return
 	}
 
 	if sellerUserID, err := findSellerUserIDByProductID(order.ProductID); err == nil {
 		orderRecordID := order.ID
-		_ = services.CreateNotification(
-			sellerUserID,
-			"Order received",
-			"The buyer confirmed that the order was received.",
-			"seller_order_completed",
-			&orderRecordID,
-			nil,
-		)
+		_ = services.CreateNotification(sellerUserID, "Order received", "The buyer confirmed that the order was received.", "seller_order_completed", &orderRecordID, nil)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Order marked as received"})
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "Order marked as received"})
 }
 
 func usesManualCompletion(deliveryType string) bool {
@@ -444,10 +359,10 @@ func calculateDistanceKm(lat1, lng1, lat2, lng2 float64) float64 {
 	return earthRadiusKm * c
 }
 
-func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) OrderDto {
+func mapOrderToDto(order models.Order, product models.Product, seller models.Seller) dto.OrderDto {
 	imageUrl, _ := services.GenerateSignedURL(product.ImageName)
 
-	dto := OrderDto{
+	res := dto.OrderDto{
 		ID:                  order.ID,
 		Status:              order.Status,
 		CreatedAt:           order.CreatedAt,
@@ -467,21 +382,20 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 	}
 
 	if shouldExposeConfirmCode(order) {
-		dto.ConfirmCode = &order.ConfirmCode
+		res.ConfirmCode = &order.ConfirmCode
 	}
 
-	// Fill delivery details based on type
 	if order.DeliveryType == models.DeliveryTypePickup {
-		dto.PickupAddress = &seller.PickupAddress
-		dto.PickupTime = &seller.PickupTime
+		res.PickupAddress = &seller.PickupAddress
+		res.PickupTime = &seller.PickupTime
 	} else if order.DeliveryType == models.DeliveryTypeMyDelivery {
-		dto.ZoneCenterLat = &seller.DeliveryCenterLat
-		dto.ZoneCenterLng = &seller.DeliveryCenterLng
-		dto.ZoneRadiusKm = &seller.DeliveryRadiusKm
-		dto.ZoneCenterAddress = &seller.DeliveryCenterAddress
+		res.ZoneCenterLat = &seller.DeliveryCenterLat
+		res.ZoneCenterLng = &seller.DeliveryCenterLng
+		res.ZoneRadiusKm = &seller.DeliveryRadiusKm
+		res.ZoneCenterAddress = &seller.DeliveryCenterAddress
 	}
 
-	return dto
+	return res
 }
 
 func buildPickupDescription(seller models.Seller) string {
