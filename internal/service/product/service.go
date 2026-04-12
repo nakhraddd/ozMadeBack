@@ -56,7 +56,7 @@ func (s *Service) GetProduct(ctx context.Context, productID uint) (models.Produc
 	}
 
 	var product models.Product
-	if err := s.db.Preload("Comments").First(&product, productID).Error; err != nil {
+	if err := s.db.Preload("Comments").Preload("Comments.User").First(&product, productID).Error; err != nil {
 		return models.Product{}, err
 	}
 

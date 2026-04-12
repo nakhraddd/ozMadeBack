@@ -4,11 +4,22 @@ import (
 	"net/http"
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/models"
+	"ozMadeBack/internal/services"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+type ReviewDto struct {
+	ID        uint      `json:"id"`
+	UserID    uint      `json:"user_id"`
+	UserName  string    `json:"user_name"`
+	UserPhoto string    `json:"user_photo"`
+	Rating    float64   `json:"rating"`
+	CreatedAt time.Time `json:"created_at"`
+	Text      string    `json:"text"`
+}
 
 func GetProductReviews(c *gin.Context) {
 	productIDStr := c.Param("id")
@@ -25,43 +36,27 @@ func GetProductReviews(c *gin.Context) {
 	}
 
 	var comments []models.Comment
-	database.DB.Where("product_id = ?", productID).Order("created_at desc").Find(&comments)
+	database.DB.Preload("User").
+		Where("product_id = ?", productID).
+		Order("created_at desc").Find(&comments)
 
-	var userIDs []uint
+	reviewDtos := make([]ReviewDto, 0, len(comments))
 	for _, comment := range comments {
-		userIDs = append(userIDs, comment.UserID)
-	}
-
-	userMap := make(map[uint]models.User)
-	if len(userIDs) > 0 {
-		var users []models.User
-		database.DB.Where("id IN ?", userIDs).Find(&users)
-		for _, u := range users {
-			userMap[u.ID] = u
+		name := comment.User.Name
+		if name == "" {
+			name = comment.User.PhoneNumber
 		}
-	}
-
-	type ReviewDto struct {
-		ID        uint      `json:"id"`
-		UserName  string    `json:"user_name"`
-		Rating    float64   `json:"rating"`
-		CreatedAt time.Time `json:"created_at"`
-		Text      string    `json:"text"`
-	}
-
-	var reviewDtos []ReviewDto
-	for _, comment := range comments {
-		name := "Anonymous"
-		if user, exists := userMap[comment.UserID]; exists {
-			name = user.Name
-			if name == "" {
-				name = user.PhoneNumber
-			}
+		if name == "" {
+			name = "Anonymous"
 		}
+
+		photo, _ := services.GenerateSignedURLForUser(comment.User.PhotoUrl)
 
 		reviewDtos = append(reviewDtos, ReviewDto{
 			ID:        comment.ID,
+			UserID:    comment.UserID,
 			UserName:  name,
+			UserPhoto: photo,
 			Rating:    comment.Rating,
 			CreatedAt: comment.CreatedAt,
 			Text:      comment.Text,
@@ -104,69 +99,35 @@ func GetSellerReviews(c *gin.Context) {
 
 	var comments []models.Comment
 	if len(productIDs) > 0 {
-		database.DB.Where("product_id IN ?", productIDs).Order("created_at desc").Find(&comments)
+		database.DB.Preload("User").Preload("Product").
+			Where("product_id IN ?", productIDs).
+			Order("created_at desc").Find(&comments)
 	}
 
-	var userIDs []uint
-	var commentProductIDs []uint
-	for _, comment := range comments {
-		userIDs = append(userIDs, comment.UserID)
-		commentProductIDs = append(commentProductIDs, comment.ProductID)
-	}
-
-	userMap := make(map[uint]models.User)
-	if len(userIDs) > 0 {
-		var users []models.User
-		database.DB.Where("id IN ?", userIDs).Find(&users)
-		for _, u := range users {
-			userMap[u.ID] = u
-		}
-	}
-
-	productMap := make(map[uint]models.Product)
-	if len(commentProductIDs) > 0 {
-		var products []models.Product
-		database.DB.Where("id IN ?", commentProductIDs).Find(&products)
-		for _, p := range products {
-			productMap[p.ID] = p
-		}
-	}
-
-	type SellerReviewDto struct {
-		ID           uint      `json:"id"`
-		UserName     string    `json:"user_name"`
-		ProductID    uint      `json:"product_id"`
-		ProductTitle string    `json:"product_title"`
-		Rating       float64   `json:"rating"`
-		CreatedAt    time.Time `json:"created_at"`
-		Text         string    `json:"text"`
-	}
-
-	var reviewDtos []SellerReviewDto
+	reviewDtos := make([]interface{}, 0, len(comments))
 	var totalRating float64
 	for _, comment := range comments {
 		totalRating += comment.Rating
-		name := "Anonymous"
-		if user, exists := userMap[comment.UserID]; exists {
-			name = user.Name
-			if name == "" {
-				name = user.PhoneNumber
-			}
-		}
 
-		title := "Unknown Product"
-		if p, exists := productMap[comment.ProductID]; exists {
-			title = p.Title
+		name := comment.User.Name
+		if name == "" {
+			name = comment.User.PhoneNumber
 		}
+		if name == "" {
+			name = "Anonymous"
+		}
+		photo, _ := services.GenerateSignedURLForUser(comment.User.PhotoUrl)
 
-		reviewDtos = append(reviewDtos, SellerReviewDto{
-			ID:           comment.ID,
-			UserName:     name,
-			ProductID:    comment.ProductID,
-			ProductTitle: title,
-			Rating:       comment.Rating,
-			CreatedAt:    comment.CreatedAt,
-			Text:         comment.Text,
+		reviewDtos = append(reviewDtos, gin.H{
+			"id":            comment.ID,
+			"user_id":       comment.UserID,
+			"user_name":     name,
+			"user_photo":    photo,
+			"product_id":    comment.ProductID,
+			"product_title": comment.Product.Title,
+			"rating":        comment.Rating,
+			"created_at":    comment.CreatedAt,
+			"text":          comment.Text,
 		})
 	}
 

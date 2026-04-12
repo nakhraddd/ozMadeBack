@@ -246,6 +246,14 @@ func GetProduct(c *gin.Context) {
 		}
 	}
 
+	// Sign user photos in comments and replies
+	for i := range product.Comments {
+		if product.Comments[i].User.PhotoUrl != "" {
+			photo, _ := services.GenerateSignedURLForUser(product.Comments[i].User.PhotoUrl)
+			product.Comments[i].User.PhotoUrl = photo
+		}
+	}
+
 	// Fetch seller
 	var seller models.Seller
 	delivery := emptyDelivery()
