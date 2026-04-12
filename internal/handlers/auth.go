@@ -9,6 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type SyncUserInput struct {
+	FCMToken string `json:"fcm_token"`
+}
+
 func SyncUser(c *gin.Context) {
 	val, exists := c.Get("firebaseToken")
 	if !exists {
@@ -21,6 +25,9 @@ func SyncUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid token type"})
 		return
 	}
+
+	var input SyncUserInput
+	_ = c.ShouldBindJSON(&input) // FCM token is optional
 
 	var user models.User
 	result := database.DB.Where("firebase_uid = ?", firebaseToken.UID).First(&user)
@@ -35,6 +42,7 @@ func SyncUser(c *gin.Context) {
 			PhoneNumber: phoneNumber,
 			Name:        name,
 			PhotoUrl:    photoURL,
+			FCMToken:    input.FCMToken,
 		}
 
 		if err := database.DB.Create(&user).Error; err != nil {
@@ -42,7 +50,7 @@ func SyncUser(c *gin.Context) {
 			return
 		}
 	} else {
-		// Update name or photo if they changed in Firebase/are missing
+		// Update name, photo, or FCM token if they changed or were missing
 		updated := false
 		if name, ok := firebaseToken.Claims["name"].(string); ok && user.Name == "" {
 			user.Name = name
@@ -50,6 +58,10 @@ func SyncUser(c *gin.Context) {
 		}
 		if photoURL, ok := firebaseToken.Claims["picture"].(string); ok && user.PhotoUrl == "" {
 			user.PhotoUrl = photoURL
+			updated = true
+		}
+		if input.FCMToken != "" && user.FCMToken != input.FCMToken {
+			user.FCMToken = input.FCMToken
 			updated = true
 		}
 		if updated {

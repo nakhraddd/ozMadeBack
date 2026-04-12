@@ -113,29 +113,28 @@ func SendMessage(c *gin.Context) {
 	}
 
 	hub := realtime.GetHub()
-	notification, _ := json.Marshal(gin.H{
+	notificationPayload, _ := json.Marshal(gin.H{
 		"type":    "new_message",
 		"chat_id": chat.ID,
 		"message": message,
 	})
-	hub.SendToUser(recipientID, notification)
+	hub.SendToUser(recipientID, notificationPayload)
 
-	var recipient models.User
-	if err := database.DB.First(&recipient, recipientID).Error; err == nil && recipient.FCMToken != "" {
-		pushContent := content
-		if pushContent == "" && mediaType != "" {
-			pushContent = "Sent a " + mediaType
-		}
-		_ = realtime.SendFCMNotification(
-			recipient.FCMToken,
-			"New Message",
-			pushContent,
-			map[string]string{
-				"chat_id": strconv.Itoa(int(chat.ID)),
-				"type":    "chat_message",
-			},
-		)
+	pushContent := content
+	if pushContent == "" && mediaType != "" {
+		pushContent = "Sent a " + mediaType
 	}
+
+	_ = services.CreateNotification(
+		recipientID,
+		"New Message",
+		pushContent,
+		"chat_message",
+		nil,
+		map[string]string{
+			"chat_id": strconv.Itoa(int(chat.ID)),
+		},
+	)
 
 	c.JSON(http.StatusCreated, message)
 }
@@ -201,24 +200,23 @@ func InitiateChat(c *gin.Context) {
 		database.DB.Create(&message)
 
 		hub := realtime.GetHub()
-		notification, _ := json.Marshal(gin.H{
+		notificationPayload, _ := json.Marshal(gin.H{
 			"type":    "new_message",
 			"chat_id": chat.ID,
 			"message": message,
 		})
-		hub.SendToUser(seller.UserID, notification)
+		hub.SendToUser(seller.UserID, notificationPayload)
 
-		if seller.User.FCMToken != "" {
-			_ = realtime.SendFCMNotification(
-				seller.User.FCMToken,
-				"New Message",
-				input.Content,
-				map[string]string{
-					"chat_id": strconv.Itoa(int(chat.ID)),
-					"type":    "chat_message",
-				},
-			)
-		}
+		_ = services.CreateNotification(
+			seller.UserID,
+			"New Message",
+			input.Content,
+			"chat_message",
+			nil,
+			map[string]string{
+				"chat_id": strconv.Itoa(int(chat.ID)),
+			},
+		)
 	}
 
 	var buyer models.User

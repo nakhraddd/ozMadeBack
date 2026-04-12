@@ -1,6 +1,7 @@
 package services
 
 import (
+	"log"
 	"strconv"
 
 	"ozMadeBack/internal/database"
@@ -19,6 +20,7 @@ func CreateNotification(userID uint, title, body, notificationType string, order
 	}
 
 	if err := database.DB.Create(&notification).Error; err != nil {
+		log.Printf("Error creating notification record: %v", err)
 		return err
 	}
 
@@ -42,5 +44,10 @@ func CreateNotification(userID uint, title, body, notificationType string, order
 		payload[key] = value
 	}
 
-	return realtime.SendFCMNotification(user.FCMToken, title, body, payload)
+	err := realtime.SendFCMNotification(user.FCMToken, title, body, payload)
+	if err != nil {
+		log.Printf("Error sending FCM notification to user %d: %v", userID, err)
+	}
+
+	return err
 }
