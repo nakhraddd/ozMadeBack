@@ -54,6 +54,7 @@ The backend is designed to run on modern cloud infrastructure, leveraging the fo
 *   **Storage**: **Google Cloud Storage (GCS)** for persistent file storage.
     *   `oz-made/products/`: Public-facing product images.
     *   `oz-made/seller_ids/`: Private seller verification documents.
+    *   `oz-made/seller_licenses/`: Private seller license documents (e.g., for food products).
 *   **Real-time Communication**:
     *   **WebSockets**: Bi-directional communication for instant chat messaging.
     *   **Firebase Cloud Messaging (FCM)**: Push notifications for orders and messages when the app is in the background.
@@ -77,6 +78,7 @@ Extended profile for users who sell products.
 *   `user_id`: Reference to `users.id`
 *   `status`: Application status ("pending", "approved", "rejected")
 *   `id_card`: Path to the uploaded verification image
+*   `licenses`: JSON array of GCS object names for seller licenses (e.g., food safety certificates).
 *   **Delivery Settings**:
     *   `pickup_enabled`: If customers can collect in person.
     *   `pickup_address`: The physical collection point.
@@ -187,7 +189,7 @@ Submit a rating and review.
 Creates a new order. Requires `product_id`, `quantity`, and `delivery_type`.
 
 #### `DELETE /chats/:chat_id`
-Soft-deletes a chat. The conversation will no longer appear in your list, but remains for the other person.
+Soft-deletes a chat. The conversation will no longer appear in your list, but remains for the other party.
 
 ---
 
@@ -203,8 +205,40 @@ Returns a signed `PUT` URL.
 2.  Perform a `PUT` from the client directly to GCS.
 3.  Send the `fileUrl` back to the server in the product creation request.
 
+#### `GET /seller/upload-license-url`
+Returns a signed `PUT` URL for uploading seller license documents (e.g., food safety certificates).
+*   **Query Params**: `content_type` (e.g., `application/pdf`, `image/jpeg`).
+*   **Behavior**: Generates a unique object name under `seller_licenses/{userID}/`.
+
 #### `PATCH /seller/delivery`
 Updates how your products are shipped or picked up.
 
 #### `POST /seller/orders/:id/confirm`
 Changes order status to `CONFIRMED` and generates a `confirm_code` for the buyer.
+
+---
+
+### Admin Panel (Retool Integration)
+
+This section describes the API endpoints designed for the administrative panel, intended to be consumed by a tool like Retool for managing application data and operations. All admin endpoints require authentication and an "admin" user role.
+
+#### User Management
+*   `GET /admin/users`: Retrieve a list of all users.
+*   `GET /admin/users/:id`: Retrieve details for a specific user.
+*   `POST /admin/users`: Create a new user.
+*   `PUT /admin/users/:id`: Update an existing user's details.
+*   `DELETE /admin/users/:id`: Delete a user.
+
+#### Product Review
+*   `GET /admin/products/pending-review`: Retrieve products awaiting administrative review.
+*   `POST /admin/products/:id/approve`: Approve a product, changing its status.
+*   `POST /admin/products/:id/reject`: Reject a product, changing its status.
+
+#### Seller License Review
+*   `GET /admin/sellers/:id/licenses`: Retrieve signed URLs for all license documents associated with a specific seller.
+
+#### Report Review
+*   `GET /admin/reports`: Retrieve a list of all submitted reports.
+*   `GET /admin/reports/:id`: Retrieve details for a specific report.
+*   `POST /admin/reports/:id/resolve`: Mark a report as resolved.
+*   `POST /admin/reports/:id/dismiss`: Dismiss a report.
