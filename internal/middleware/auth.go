@@ -1,3 +1,0 @@
-package middleware
-
-// Authentication middleware

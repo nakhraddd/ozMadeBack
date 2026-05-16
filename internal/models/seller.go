@@ -4,17 +4,18 @@ import "gorm.io/gorm"
 
 type Seller struct {
 	gorm.Model
-	UserID                uint   `gorm:"unique;not null"`
-	User                  User   `gorm:"foreignKey:UserID"`
-	FirstName             string `json:"first_name"`
-	LastName              string `json:"last_name"`
-	DisplayName           string `json:"display_name"`
-	City                  string `json:"city"`
-	Address               string `json:"address"`
-	Description           string `json:"description"`
-	Categories            string `json:"categories"`
-	PhotoURL              string `json:"photo_url"`
-	Status                string `gorm:"default:'pending'"`
+	UserID                uint     `gorm:"unique;not null"`
+	User                  User     `gorm:"foreignKey:UserID"`
+	FirstName             string   `json:"first_name"`
+	LastName              string   `json:"last_name"`
+	DisplayName           string   `json:"display_name"`
+	City                  string   `json:"city"`
+	Address               string   `json:"address"`
+	Description           string   `json:"description"`
+	Categories            string   `json:"categories"`
+	PhotoURL              string   `json:"photo_url"`
+	Licenses              []string `gorm:"serializer:json" json:"licenses"` // New field for seller licenses
+	Status                string   `gorm:"default:'pending'"`
 	IDCard                string
 	Products              []Product `gorm:"foreignKey:SellerID"`
 	OrdersCount           int       `json:"orders_count" gorm:"default:0"`

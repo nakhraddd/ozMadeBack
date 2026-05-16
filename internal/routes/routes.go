@@ -1,13 +1,15 @@
 package routes
 
 import (
-	"ozMadeBack/internal/auth"
 	"ozMadeBack/internal/handlers"
+	"ozMadeBack/internal/middleware" // Import the new middleware package
 
+	firebaseAuth "firebase.google.com/go/v4/auth" // Alias firebase auth package
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
+// SetupRoutes initializes all application routes
+func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, adminHandler *handlers.AdminHandler, authClient *firebaseAuth.Client) {
 	// Public routes
 	r.GET("/categories", handlers.GetCategories)
 	r.GET("/ads", handlers.GetAds)
@@ -16,7 +18,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	r.GET("/sellers/:id/reviews", sellerHandler.GetSellerQuality) // seller quality metrics and reviews
 
 	authRoutes := r.Group("/auth")
-	authRoutes.Use(auth.AuthMiddleware())
+	authRoutes.Use(middleware.AuthMiddleware(authClient)) // Use the new middleware
 	{
 		authRoutes.POST("/sync", handlers.SyncUser)
 	}
@@ -25,19 +27,19 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	{
 		productRoutes.GET("/search", handlers.SearchProducts)
 		productRoutes.GET("/trending", handlers.GetTrendingProducts)
-		productRoutes.GET("/recommendations", auth.AuthMiddleware(), handlers.GetRecommendations)
-		productRoutes.GET("/:id/checkout-options", auth.AuthMiddleware(), handlers.GetCheckoutOptions)
+		productRoutes.GET("/recommendations", middleware.AuthMiddleware(authClient), handlers.GetRecommendations)      // Use the new middleware
+		productRoutes.GET("/:id/checkout-options", middleware.AuthMiddleware(authClient), handlers.GetCheckoutOptions) // Use the new middleware
 		productRoutes.GET("", handlers.GetProducts)
 		productRoutes.GET("/:id", handlers.GetProduct)
 		productRoutes.GET("/:id/reviews", handlers.GetProductReviews)
 		productRoutes.POST("/:id/view", handlers.ViewProduct)
 
-		productRoutes.POST("/:id/comments", auth.AuthMiddleware(), handlers.PostComment) // Protected
-		productRoutes.POST("/:id/report", auth.AuthMiddleware(), handlers.ReportProduct) // Protected
+		productRoutes.POST("/:id/comments", middleware.AuthMiddleware(authClient), handlers.PostComment) // Protected, use new middleware
+		productRoutes.POST("/:id/report", middleware.AuthMiddleware(authClient), handlers.ReportProduct) // Protected, use new middleware
 	}
 
 	userRoutes := r.Group("/profile")
-	userRoutes.Use(auth.AuthMiddleware())
+	userRoutes.Use(middleware.AuthMiddleware(authClient)) // Use the new middleware
 	{
 		userRoutes.GET("", handlers.GetProfile)
 		userRoutes.PATCH("", handlers.UpdateProfile)
@@ -49,7 +51,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	}
 
 	notificationRoutes := r.Group("/notifications")
-	notificationRoutes.Use(auth.AuthMiddleware())
+	notificationRoutes.Use(middleware.AuthMiddleware(authClient)) // Use the new middleware
 	{
 		notificationRoutes.GET("", handlers.GetNotifications)
 		notificationRoutes.POST("/:id/read", handlers.MarkNotificationRead)
@@ -57,7 +59,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	}
 
 	orderRoutes := r.Group("/orders")
-	orderRoutes.Use(auth.AuthMiddleware())
+	orderRoutes.Use(middleware.AuthMiddleware(authClient)) // Use the new middleware
 	{
 		orderRoutes.GET("", handlers.GetBuyerOrders)
 		orderRoutes.POST("", handlers.CreateOrder)
@@ -66,7 +68,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 	}
 
 	chatRoutes := r.Group("/chats")
-	chatRoutes.Use(auth.AuthMiddleware())
+	chatRoutes.Use(middleware.AuthMiddleware(authClient)) // Use the new middleware
 	{
 		chatRoutes.POST("", handlers.InitiateChat)
 		chatRoutes.GET("", handlers.GetChats)
@@ -75,4 +77,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler) {
 		chatRoutes.DELETE("/:chat_id", handlers.DeleteChat)
 		chatRoutes.GET("/upload-url", handlers.GetUploadURL)
 	}
+
+	// Admin Routes
+	SetupAdminRoutes(r, adminHandler, authClient)
 }

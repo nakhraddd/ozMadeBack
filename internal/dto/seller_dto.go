@@ -11,6 +11,7 @@ type SellerRegistrationInput struct {
 	Categories  []string `json:"categories" binding:"required"`
 	About       string   `json:"about"`
 	IDCardUrl   string   `json:"id_card_url"`
+	Licenses    []string `json:"licenses"` // New field for seller licenses
 }
 
 type SellerUpdateInput struct {
@@ -22,6 +23,7 @@ type SellerUpdateInput struct {
 	Description *string   `json:"description"`
 	Categories  *[]string `json:"categories"`
 	PhotoURL    *string   `json:"photo_url"`
+	Licenses    *[]string `json:"licenses"` // New field for seller licenses
 }
 
 type SellerQualityCommentDto struct {

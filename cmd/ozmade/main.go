@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"ozMadeBack/config"
-	"ozMadeBack/internal/auth"
+	internalAuth "ozMadeBack/internal/auth" // Alias the internal auth package
 	"ozMadeBack/internal/database"
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/routes"
@@ -26,7 +26,7 @@ func main() {
 	database.InitRedis()
 	services.InitProductSearchService()
 
-	auth.InitFirebase()
+	internalAuth.InitFirebase() // Use the aliased package
 
 	// Start background worker
 	go services.StartTrendingWorker()
@@ -59,14 +59,15 @@ func main() {
 	services.InitGCSService(bucketName, storageClient)
 	services.BootstrapProductIndex(context.Background())
 	sellerHandler := handlers.NewSellerHandler(services.GCS)
+	adminHandler := handlers.NewAdminHandler(database.DB) // Initialize AdminHandler
 
 	r := gin.Default()
 
 	// WebSocket route
 	r.GET("/ws", realtime.HandleWebSocket)
 
-	routes.SetupRoutes(r, sellerHandler)
-	routes.SellerRoutes(r, sellerHandler, auth.Client)
+	routes.SetupRoutes(r, sellerHandler, adminHandler, internalAuth.Client) // Pass internalAuth.Client
+	routes.SellerRoutes(r, sellerHandler, internalAuth.Client)              // Pass internalAuth.Client
 
 	r.Run("0.0.0.0:8080")
 }

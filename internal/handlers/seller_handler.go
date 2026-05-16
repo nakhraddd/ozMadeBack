@@ -128,6 +128,7 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 		Description: input.About,
 		Categories:  strings.Join(input.Categories, ","),
 		IDCard:      input.IDCardUrl,
+		Licenses:    input.Licenses, // Save licenses during registration
 		Status:      "pending",
 	}
 	tx := database.DB.Begin()
@@ -195,6 +196,41 @@ func (h *SellerHandler) GetUploadPhotoURL(c *gin.Context) {
 	}
 	ext := filepath.Ext(fileName)
 	objectName := fmt.Sprintf("seller_photos/%d/%s%s", userID, uuid.New().String(), ext)
+	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute, contentType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to generate upload URL"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"upload_url": url, "object_name": objectName})
+}
+
+// GetUploadLicenseURL generates a signed URL for uploading seller product licenses (e.g., for food products)
+func (h *SellerHandler) GetUploadLicenseURL(c *gin.Context) {
+	userID := c.GetUint("userID")
+	contentType := c.Query("content_type")
+	if contentType == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "content_type is required"})
+		return
+	}
+
+	// Determine file extension based on content type
+	ext := ""
+	if strings.Contains(contentType, "pdf") {
+		ext = ".pdf"
+	} else if strings.Contains(contentType, "image/jpeg") {
+		ext = ".jpg"
+	} else if strings.Contains(contentType, "image/png") {
+		ext = ".png"
+	} else if strings.Contains(contentType, "image/webp") {
+		ext = ".webp"
+	} else {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Unsupported content type"})
+		return
+	}
+
+	// Construct object name: seller_licenses/{userID}/{uuid}.{ext}
+	objectName := fmt.Sprintf("seller_licenses/%d/%s%s", userID, uuid.New().String(), ext)
+
 	url, err := h.GCSService.GenerateSignedURL(objectName, "PUT", 15*time.Minute, contentType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to generate upload URL"})
@@ -335,29 +371,19 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 	if seller.PhotoURL != "" {
 		photoURL, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"id": seller.ID, "name": resolveSellerPublicName(seller), "phone_number": seller.User.PhoneNumber, "address": seller.User.Address, "status": seller.Status, "total_products": len(productDtos), "orders_count": metrics.OrdersCount, "average_rating": metrics.AverageRating, "ratings_count": metrics.RatingsCount, "reviews_count": metrics.ReviewsCount, "days_with_us": metrics.DaysWithOzMade, "level_title": level.Title, "level_progress": level.Progress, "level_hint": level.Hint, "products": productDtos, "delivery": serializeDeliverySettings(seller), "first_name": seller.FirstName, "last_name": seller.LastName, "display_name": seller.DisplayName, "city": seller.City, "about": seller.Description, "categories": categories, "photo_url": photoURL,
-	})
-}
 
-func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
-	id := c.Param("id")
-	var seller models.Seller
-	if err := database.DB.Preload("User").First(&seller, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Seller not found"})
-		return
+	// Generate signed URLs for licenses
+	licenseURLs := make([]string, 0, len(seller.Licenses))
+	for _, licenseObjectName := range seller.Licenses {
+		if url, err := services.GenerateSignedURLForLicense(licenseObjectName); err == nil {
+			licenseURLs = append(licenseURLs, url)
+		} else {
+			fmt.Printf("Error generating signed URL for seller license %s: %v\n", licenseObjectName, err)
+		}
 	}
-	var products []models.Product
-	database.DB.Where("seller_id = ?", seller.ID).Find(&products)
-	productDtos := buildSellerProfileProducts(products, seller)
-	metrics := computeSellerMetrics(seller)
-	level := computeLevel(metrics.OrdersCount, metrics.AverageRating, metrics.ReviewsCount, metrics.DaysWithOzMade)
-	photoURL := ""
-	if seller.PhotoURL != "" {
-		photoURL, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
-	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"id": seller.ID, "name": resolveSellerPublicName(seller), "photo_url": photoURL, "phone_number": seller.User.PhoneNumber, "address": seller.User.Address, "status": seller.Status, "total_products": len(productDtos), "orders_count": metrics.OrdersCount, "average_rating": metrics.AverageRating, "ratings_count": metrics.RatingsCount, "reviews_count": metrics.ReviewsCount, "days_with_us": metrics.DaysWithOzMade, "level_title": level.Title, "level_progress": level.Progress, "level_hint": level.Hint, "products": productDtos, "delivery": serializeDeliverySettings(seller),
+		"id": seller.ID, "name": resolveSellerPublicName(seller), "phone_number": seller.User.PhoneNumber, "address": seller.User.Address, "status": seller.Status, "total_products": len(productDtos), "orders_count": metrics.OrdersCount, "average_rating": metrics.AverageRating, "ratings_count": metrics.RatingsCount, "reviews_count": metrics.ReviewsCount, "days_with_us": metrics.DaysWithOzMade, "level_title": level.Title, "level_progress": level.Progress, "level_hint": level.Hint, "products": productDtos, "delivery": serializeDeliverySettings(seller), "first_name": seller.FirstName, "last_name": seller.LastName, "display_name": seller.DisplayName, "city": seller.City, "about": seller.Description, "categories": categories, "photo_url": photoURL, "licenses": licenseURLs, // Include licenses
 	})
 }
 
@@ -389,6 +415,38 @@ func (h *SellerHandler) GetSellerQuality(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, dto.SellerQualityResponse{
 		SellerName: resolveSellerPublicName(seller), PhotoURL: photoURL, FirstName: seller.FirstName, LastName: seller.LastName, DisplayName: seller.DisplayName, City: seller.City, Address: seller.Address, Categories: seller.Categories, Description: seller.Description, OrdersCount: metrics.OrdersCount, DaysWithOzMade: metrics.DaysWithOzMade, LevelTitle: level.Title, LevelProgress: level.Progress, LevelHint: level.Hint, AverageRating: metrics.AverageRating, RatingsCount: metrics.RatingsCount, ReviewsCount: metrics.ReviewsCount, Reviews: reviewDtos,
+	})
+}
+
+func (h *SellerHandler) GetSellerProfile(c *gin.Context) {
+	id := c.Param("id")
+	var seller models.Seller
+	if err := database.DB.Preload("User").First(&seller, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Seller not found"})
+		return
+	}
+	var products []models.Product
+	database.DB.Where("seller_id = ?", seller.ID).Find(&products)
+	productDtos := buildSellerProfileProducts(products, seller)
+	metrics := computeSellerMetrics(seller)
+	level := computeLevel(metrics.OrdersCount, metrics.AverageRating, metrics.ReviewsCount, metrics.DaysWithOzMade)
+	photoURL := ""
+	if seller.PhotoURL != "" {
+		photoURL, _ = services.GenerateSignedURLForSeller(seller.PhotoURL)
+	}
+
+	// Generate signed URLs for licenses
+	licenseURLs := make([]string, 0, len(seller.Licenses))
+	for _, licenseObjectName := range seller.Licenses {
+		if url, err := services.GenerateSignedURLForLicense(licenseObjectName); err == nil {
+			licenseURLs = append(licenseURLs, url)
+		} else {
+			fmt.Printf("Error generating signed URL for seller license %s: %v\n", licenseObjectName, err)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id": seller.ID, "name": resolveSellerPublicName(seller), "photo_url": photoURL, "phone_number": seller.User.PhoneNumber, "address": seller.User.Address, "status": seller.Status, "total_products": len(productDtos), "orders_count": metrics.OrdersCount, "average_rating": metrics.AverageRating, "ratings_count": metrics.RatingsCount, "reviews_count": metrics.ReviewsCount, "days_with_us": metrics.DaysWithOzMade, "level_title": level.Title, "level_progress": level.Progress, "level_hint": level.Hint, "products": productDtos, "delivery": serializeDeliverySettings(seller), "licenses": licenseURLs, // Include licenses
 	})
 }
 
@@ -451,6 +509,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 	}
 	contentType := c.GetHeader("Content-Type")
 	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// Handle multipart form data (e.g., file uploads)
 		if firstName := c.PostForm("first_name"); firstName != "" {
 			seller.FirstName = firstName
 		}
@@ -472,6 +531,11 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		if cats := c.PostForm("categories"); cats != "" {
 			seller.Categories = cats
 		}
+		// Licenses are typically sent as an array of strings (object names) in JSON,
+		// not usually via multipart form data for updates unless it's a file upload.
+		// If licenses are uploaded as files, you'd handle them similarly to 'photo' here.
+		// For now, assuming licenses are updated via JSON.
+
 		file, err := c.FormFile("photo")
 		if err == nil && h.GCSService != nil {
 			ext := filepath.Ext(file.Filename)
@@ -479,6 +543,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 			seller.PhotoURL = objectName
 		}
 	} else {
+		// Handle application/json
 		var input dto.SellerUpdateInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
@@ -509,6 +574,9 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 		if input.PhotoURL != nil {
 			updates["photo_url"] = *input.PhotoURL
 		}
+		if input.Licenses != nil { // Update licenses
+			seller.Licenses = *input.Licenses
+		}
 		if len(updates) > 0 {
 			if err := database.DB.Model(&seller).Updates(updates).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to update seller profile"})
@@ -516,7 +584,7 @@ func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 			}
 		}
 	}
-	if err := database.DB.Save(&seller).Error; err != nil {
+	if err := database.DB.Save(&seller).Error; err != nil { // Save seller to persist licenses if updated via JSON
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to save profile"})
 		return
 	}

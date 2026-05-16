@@ -35,7 +35,7 @@ func GenerateSignedURL(objectName string) (string, error) {
 	objectName = strings.TrimPrefix(objectName, "/")
 
 	// Ensure the product image has the "products/" prefix if it doesn't have another directory prefix
-	if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") && !strings.HasPrefix(objectName, "chats/") && !strings.HasPrefix(objectName, "users/") && !strings.HasPrefix(objectName, "seller_photos/") {
+	if !strings.HasPrefix(objectName, "products/") && !strings.HasPrefix(objectName, "seller_ids/") && !strings.HasPrefix(objectName, "chats/") && !strings.HasPrefix(objectName, "users/") && !strings.HasPrefix(objectName, "seller_photos/") && !strings.HasPrefix(objectName, "seller_licenses/") {
 		objectName = "products/" + objectName
 	}
 
@@ -88,6 +88,27 @@ func GenerateSignedURLForSeller(objectName string) (string, error) {
 
 	// Clean the path
 	objectName = strings.TrimPrefix(objectName, "/")
+
+	return GCS.GenerateSignedURL(objectName, "GET", 24*time.Hour, "")
+}
+
+// GenerateSignedURLForLicense generates a signed URL for retrieving a seller's product license
+func GenerateSignedURLForLicense(objectName string) (string, error) {
+	if GCS == nil {
+		return "", fmt.Errorf("GCS service not initialized")
+	}
+
+	if objectName == "" {
+		return "", nil
+	}
+
+	// Clean the path
+	objectName = strings.TrimPrefix(objectName, "/")
+
+	// Ensure it has the correct prefix, though it should already be set by the handler
+	if !strings.HasPrefix(objectName, "seller_licenses/") {
+		return "", fmt.Errorf("invalid object name for license: must start with 'seller_licenses/'")
+	}
 
 	return GCS.GenerateSignedURL(objectName, "GET", 24*time.Hour, "")
 }

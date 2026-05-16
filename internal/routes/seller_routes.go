@@ -15,6 +15,7 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 	sellerGroup.GET("/upload-id-url", sellerHandler.GetUploadIDURL)
 	sellerGroup.GET("/upload-product-photo-url", sellerHandler.GetUploadProductPhotoURL)
 	sellerGroup.GET("/upload-photo-url", sellerHandler.GetUploadPhotoURL)
+	sellerGroup.GET("/upload-license-url", sellerHandler.GetUploadLicenseURL) // New: For food product licenses
 
 	sellerGroup.Use(middleware.SellerMiddleware())
 	{
