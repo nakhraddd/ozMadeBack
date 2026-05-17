@@ -5,8 +5,10 @@ import (
 	"ozMadeBack/internal/dto"
 	"ozMadeBack/internal/models"
 	"ozMadeBack/internal/services"
+	"ozMadeBack/internal/ui/admin"
 	"strconv"
 
+	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -14,6 +16,37 @@ import (
 // AdminHandler handles admin-related requests
 type AdminHandler struct {
 	AdminService *services.AdminService
+}
+
+// Render renders a Templ component
+func Render(c *gin.Context, status int, template templ.Component) {
+	c.Status(status)
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	template.Render(c.Request.Context(), c.Writer)
+}
+
+// --- UI Handlers ---
+
+func (h *AdminHandler) UIUsers(c *gin.Context) {
+	users, err := h.AdminService.GetUsers()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to fetch users")
+		return
+	}
+	Render(c, http.StatusOK, admin.UserList(users))
+}
+
+func (h *AdminHandler) UIPendingProducts(c *gin.Context) {
+	products, err := h.AdminService.GetPendingReviewProducts()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to fetch products")
+		return
+	}
+	Render(c, http.StatusOK, admin.ProductPending(products))
+}
+
+func (h *AdminHandler) UILogin(c *gin.Context) {
+	Render(c, http.StatusOK, admin.Login())
 }
 
 // NewAdminHandler creates a new AdminHandler

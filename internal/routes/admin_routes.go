@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"net/http"
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/middleware"
 
@@ -10,11 +11,24 @@ import (
 
 // SetupAdminRoutes initializes all admin-specific routes
 func SetupAdminRoutes(r *gin.Engine, adminHandler *handlers.AdminHandler, authClient *firebaseAuth.Client) {
+	// Public UI Routes
+	r.GET("/admin/login", adminHandler.UILogin)
+
 	adminGroup := r.Group("/admin")
 	// Admin-specific authentication and authorization middleware
 	adminGroup.Use(middleware.AuthMiddleware(authClient)) // Use actual Firebase auth client
 	adminGroup.Use(middleware.AdminMiddleware())          // Check for admin role
 	{
+		// UI Routes
+		adminGroup.GET("/", func(c *gin.Context) {
+			c.Redirect(http.StatusFound, "/admin/ui/users")
+		})
+		uiGroup := adminGroup.Group("/ui")
+		{
+			uiGroup.GET("/users", adminHandler.UIUsers)
+			uiGroup.GET("/products/pending", adminHandler.UIPendingProducts)
+		}
+
 		// User Management Routes
 		adminGroup.GET("/users", adminHandler.GetUsers)
 		adminGroup.GET("/users/:id", adminHandler.GetUser)

@@ -266,9 +266,20 @@ Changes order status to `CONFIRMED` and generates a `confirm_code` for the buyer
 
 ---
 
-### Admin Panel
+### Admin Panel (Browser UI)
 
-This section describes the API endpoints designed for the administrative panel, intended to be consumed by a tool like Retool for managing application data and operations. All admin endpoints require authentication and an "admin" user role.
+The project includes a built-in administrative dashboard accessible via the browser. It uses server-side rendering for speed and security.
+
+*   **Access**: `http://<gcp-ip>/admin` (redirects to `/admin/login` if not authenticated).
+*   **Auth**: Uses Firebase Web SDK. A successful login sets a `token` cookie used for subsequent requests.
+*   **Pages**:
+    *   **User Management**: List, edit, and delete application users.
+    *   **Product Reviews**: Approve or reject pending product listings.
+    *   **Reports**: View and resolve user reports.
+
+#### Admin API Endpoints
+
+This section describes the API endpoints designed for the administrative panel...
 
 #### User Management
 *   `GET /admin/users`: Retrieve a list of all users.

@@ -15,15 +15,36 @@ import (
 
 func AuthMiddleware(authClient *auth.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var tokenString string
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header missing"})
+
+		if authHeader != "" {
+			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		} else {
+			// Try to get from cookie for browser access
+			cookie, err := c.Cookie("token")
+			if err == nil {
+				tokenString = cookie
+			}
+		}
+
+		if tokenString == "" {
+			if strings.HasPrefix(c.Request.URL.Path, "/admin/ui") {
+				c.Redirect(http.StatusFound, "/admin/login")
+				c.Abort()
+				return
+			}
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization token missing"})
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		token, err := authClient.VerifyIDToken(context.Background(), tokenString)
 		if err != nil {
+			if strings.HasPrefix(c.Request.URL.Path, "/admin/ui") {
+				c.Redirect(http.StatusFound, "/admin/login")
+				c.Abort()
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
