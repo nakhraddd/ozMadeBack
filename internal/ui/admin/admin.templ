@@ -85,7 +85,7 @@ templ UserList(users []models.User) {
 							</td>
 							<td>
 								<div class="flex gap-2">
-									<button class="btn btn-sm btn-ghost">Edit</button>
+									<a href={ templ.URL("/admin/ui/users/" + strconv.FormatUint(uint64(user.ID), 10)) } class="btn btn-sm btn-ghost">View</a>
 									<button class="btn btn-sm btn-error btn-outline" hx-delete={ "/admin/users/" + strconv.FormatUint(uint64(user.ID), 10) } hx-confirm="Are you sure?">Delete</button>
 								</div>
 							</td>
@@ -93,6 +93,111 @@ templ UserList(users []models.User) {
 					}
 				</tbody>
 			</table>
+		</div>
+	}
+}
+
+templ UserDetails(user models.User) {
+	@Layout("User Details: " + user.Name) {
+		<div class="mb-6 flex items-center gap-4">
+			<a href="/admin/ui/users" class="btn btn-ghost btn-sm">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+				Back to List
+			</a>
+			<h1 class="text-2xl font-bold">User Details</h1>
+		</div>
+
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<!-- Profile Card -->
+			<div class="card bg-base-100 shadow p-6 flex flex-col items-center">
+				<div class="avatar mb-4">
+					<div class="w-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+						if user.PhotoUrl != "" {
+							<img src={ user.PhotoUrl } />
+						} else {
+							<div class="bg-neutral text-neutral-content flex items-center justify-center h-full text-3xl font-bold">
+								{ user.Name[0:1] }
+							</div>
+						}
+					</div>
+				</div>
+				<h2 class="text-xl font-bold">{ user.Name }</h2>
+				<div class="badge badge-primary mt-2">{ user.Role }</div>
+				if user.IsSeller {
+					<div class="badge badge-secondary mt-1">Seller</div>
+				}
+			</div>
+
+			<!-- Information Cards -->
+			<div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div class="card bg-base-100 shadow p-6">
+					<h3 class="font-bold border-b pb-2 mb-4">Account Info</h3>
+					<div class="space-y-3">
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">User ID</span>
+							<span>{ strconv.FormatUint(uint64(user.ID), 10) }</span>
+						</div>
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Firebase UID</span>
+							<code class="text-xs bg-base-200 p-1 rounded">{ user.FirebaseUID }</code>
+						</div>
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Joined</span>
+							<span>{ user.CreatedAt.Format("2006-01-02 15:04") }</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="card bg-base-100 shadow p-6">
+					<h3 class="font-bold border-b pb-2 mb-4">Contact Info</h3>
+					<div class="space-y-3">
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Email</span>
+							<a href={ templ.URL("mailto:" + user.Email) } class="link link-primary">{ user.Email }</a>
+						</div>
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Phone</span>
+							<a href={ templ.URL("tel:" + user.PhoneNumber) } class="link link-primary">{ user.PhoneNumber }</a>
+						</div>
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">FCM Token</span>
+							<div class="text-xs truncate w-full" title={ user.FCMToken }>
+								if user.FCMToken != "" {
+									{ user.FCMToken }
+								} else {
+									<span class="italic text-neutral-400">None set</span>
+								}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="card bg-base-100 shadow p-6 md:col-span-2">
+					<h3 class="font-bold border-b pb-2 mb-4">Location Info</h3>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="md:col-span-2">
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Address</span>
+							<span>{ user.Address }</span>
+						</div>
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Latitude</span>
+							if user.AddressLat != nil {
+								<span>{ fmt.Sprintf("%f", *user.AddressLat) }</span>
+							} else {
+								<span class="italic text-neutral-400">Not set</span>
+							}
+						</div>
+						<div>
+							<span class="text-xs uppercase text-neutral-400 font-bold block">Longitude</span>
+							if user.AddressLng != nil {
+								<span>{ fmt.Sprintf("%f", *user.AddressLng) }</span>
+							} else {
+								<span class="italic text-neutral-400">Not set</span>
+							}
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 	}
 }

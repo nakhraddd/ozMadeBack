@@ -26,6 +26,7 @@ func SetupAdminRoutes(r *gin.Engine, adminHandler *handlers.AdminHandler, authCl
 		uiGroup := adminGroup.Group("/ui")
 		{
 			uiGroup.GET("/users", adminHandler.UIUsers)
+			uiGroup.GET("/users/:id", adminHandler.UIUser)
 			uiGroup.GET("/products/pending", adminHandler.UIPendingProducts)
 		}
 

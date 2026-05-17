@@ -189,31 +189,361 @@ func UserList(users []models.User) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></td><td><div class=\"flex gap-2\"><button class=\"btn btn-sm btn-ghost\">Edit</button> <button class=\"btn btn-sm btn-error btn-outline\" hx-delete=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></td><td><div class=\"flex gap-2\"><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("/admin/users/" + strconv.FormatUint(uint64(user.ID), 10))
+				var templ_7745c5c3_Var12 templ.SafeURL
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/admin/ui/users/" + strconv.FormatUint(uint64(user.ID), 10)))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 88, Col: 90}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" class=\"btn btn-sm btn-ghost\">View</a> <button class=\"btn btn-sm btn-error btn-outline\" hx-delete=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var13 string
+				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("/admin/users/" + strconv.FormatUint(uint64(user.ID), 10))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 89, Col: 127}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" hx-confirm=\"Are you sure?\">Delete</button></div></td></tr>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" hx-confirm=\"Are you sure?\">Delete</button></div></td></tr>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</tbody></table></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</tbody></table></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
 		templ_7745c5c3_Err = Layout("Users").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func UserDetails(user models.User) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var15 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"mb-6 flex items-center gap-4\"><a href=\"/admin/ui/users\" class=\"btn btn-ghost btn-sm\"><svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"w-4 h-4\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18\"></path></svg> Back to List</a><h1 class=\"text-2xl font-bold\">User Details</h1></div><div class=\"grid grid-cols-1 lg:grid-cols-3 gap-6\"><!-- Profile Card --><div class=\"card bg-base-100 shadow p-6 flex flex-col items-center\"><div class=\"avatar mb-4\"><div class=\"w-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if user.PhotoUrl != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<img src=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var16 string
+				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(user.PhotoUrl)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 116, Col: 31}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"bg-neutral text-neutral-content flex items-center justify-center h-full text-3xl font-bold\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var17 string
+				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(user.Name[0:1])
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 119, Col: 24}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div></div><h2 class=\"text-xl font-bold\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var18 string
+			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(user.Name)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 124, Col: 45}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</h2><div class=\"badge badge-primary mt-2\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var19 string
+			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(user.Role)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 125, Col: 53}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if user.IsSeller {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"badge badge-secondary mt-1\">Seller</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><!-- Information Cards --><div class=\"lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6\"><div class=\"card bg-base-100 shadow p-6\"><h3 class=\"font-bold border-b pb-2 mb-4\">Account Info</h3><div class=\"space-y-3\"><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">User ID</span> <span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.FormatUint(uint64(user.ID), 10))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 138, Col: 54}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</span></div><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Firebase UID</span> <code class=\"text-xs bg-base-200 p-1 rounded\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var21 string
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(user.FirebaseUID)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 142, Col: 71}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</code></div><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Joined</span> <span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var22 string
+			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(user.CreatedAt.Format("2006-01-02 15:04"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 146, Col: 56}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span></div></div></div><div class=\"card bg-base-100 shadow p-6\"><h3 class=\"font-bold border-b pb-2 mb-4\">Contact Info</h3><div class=\"space-y-3\"><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Email</span> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var23 templ.SafeURL
+			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("mailto:" + user.Email))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 156, Col: 50}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" class=\"link link-primary\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var24 string
+			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(user.Email)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 156, Col: 91}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</a></div><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Phone</span> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var25 templ.SafeURL
+			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("tel:" + user.PhoneNumber))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 160, Col: 53}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" class=\"link link-primary\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var26 string
+			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(user.PhoneNumber)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 160, Col: 100}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</a></div><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">FCM Token</span><div class=\"text-xs truncate w-full\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var27 string
+			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(user.FCMToken)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 164, Col: 65}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if user.FCMToken != "" {
+				var templ_7745c5c3_Var28 string
+				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(user.FCMToken)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 166, Col: 24}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<span class=\"italic text-neutral-400\">None set</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</div></div></div></div><div class=\"card bg-base-100 shadow p-6 md:col-span-2\"><h3 class=\"font-bold border-b pb-2 mb-4\">Location Info</h3><div class=\"grid grid-cols-1 md:grid-cols-2 gap-4\"><div class=\"md:col-span-2\"><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Address</span> <span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var29 string
+			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(user.Address)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 180, Col: 27}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</span></div><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Latitude</span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if user.AddressLat != nil {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var30 string
+				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%f", *user.AddressLat))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 185, Col: 51}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span class=\"italic text-neutral-400\">Not set</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</div><div><span class=\"text-xs uppercase text-neutral-400 font-bold block\">Longitude</span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if user.AddressLng != nil {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var31 string
+				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%f", *user.AddressLng))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 193, Col: 51}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<span class=\"italic text-neutral-400\">Not set</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</div></div></div></div></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = Layout("User Details: "+user.Name).Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -237,12 +567,12 @@ func ProductPending(products []models.Product) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var13 == nil {
-			templ_7745c5c3_Var13 = templ.NopComponent
+		templ_7745c5c3_Var32 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var32 == nil {
+			templ_7745c5c3_Var32 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var14 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var33 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -254,159 +584,159 @@ func ProductPending(products []models.Product) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<h1 class=\"text-2xl font-bold mb-6\">Pending Product Reviews</h1><div class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<h1 class=\"text-2xl font-bold mb-6\">Pending Product Reviews</h1><div class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, product := range products {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"card bg-base-100 shadow-xl\" id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"card bg-base-100 shadow-xl\" id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var15 string
-				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("product-" + strconv.FormatUint(uint64(product.ID), 10))
+				var templ_7745c5c3_Var34 string
+				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue("product-" + strconv.FormatUint(uint64(product.ID), 10))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 105, Col: 116}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 210, Col: 116}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"><figure class=\"px-4 pt-4\"><img src=\"")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var16 string
-				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(product.ImageName)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 107, Col: 52}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\"><figure class=\"px-4 pt-4\"><img src=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" alt=\"")
+				var templ_7745c5c3_Var35 string
+				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(product.ImageName)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 212, Col: 52}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var17 string
-				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(product.Title)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 107, Col: 74}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\" alt=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" class=\"rounded-xl h-48 w-full object-cover\"></figure><div class=\"card-body\"><h2 class=\"card-title\">")
+				var templ_7745c5c3_Var36 string
+				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(product.Title)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 212, Col: 74}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var18 string
-				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(product.Title)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 110, Col: 62}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" class=\"rounded-xl h-48 w-full object-cover\"></figure><div class=\"card-body\"><h2 class=\"card-title\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</h2><p class=\"text-sm line-clamp-2\">")
+				var templ_7745c5c3_Var37 string
+				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(product.Title)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 215, Col: 62}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var19 string
-				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(product.Description)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 111, Col: 77}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</h2><p class=\"text-sm line-clamp-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p><div class=\"flex justify-between items-center mt-4\"><span class=\"font-bold text-lg\">")
+				var templ_7745c5c3_Var38 string
+				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(product.Description)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 216, Col: 77}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var20 string
-				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f", product.Cost))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 113, Col: 95}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</p><div class=\"flex justify-between items-center mt-4\"><span class=\"font-bold text-lg\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " ₸</span><div class=\"card-actions\"><button class=\"btn btn-sm btn-success\" hx-post=\"")
+				var templ_7745c5c3_Var39 string
+				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f", product.Cost))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 218, Col: 95}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var21 string
-				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue("/admin/products/" + strconv.FormatUint(uint64(product.ID), 10) + "/approve")
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 117, Col: 122}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, " ₸</span><div class=\"card-actions\"><button class=\"btn btn-sm btn-success\" hx-post=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" hx-target=\"")
+				var templ_7745c5c3_Var40 string
+				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue("/admin/products/" + strconv.FormatUint(uint64(product.ID), 10) + "/approve")
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 222, Col: 122}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var22 string
-				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue("#product-" + strconv.FormatUint(uint64(product.ID), 10))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 118, Col: 104}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" hx-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" hx-swap=\"outerHTML\">Approve</button> <button class=\"btn btn-sm btn-error\" hx-post=\"")
+				var templ_7745c5c3_Var41 string
+				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue("#product-" + strconv.FormatUint(uint64(product.ID), 10))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 223, Col: 104}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var23 string
-				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue("/admin/products/" + strconv.FormatUint(uint64(product.ID), 10) + "/reject")
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 123, Col: 121}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" hx-swap=\"outerHTML\">Approve</button> <button class=\"btn btn-sm btn-error\" hx-post=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" hx-target=\"")
+				var templ_7745c5c3_Var42 string
+				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue("/admin/products/" + strconv.FormatUint(uint64(product.ID), 10) + "/reject")
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 228, Col: 121}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var24 string
-				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue("#product-" + strconv.FormatUint(uint64(product.ID), 10))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 124, Col: 104}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" hx-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" hx-swap=\"outerHTML\">Reject</button></div></div></div></div>")
+				var templ_7745c5c3_Var43 string
+				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue("#product-" + strconv.FormatUint(uint64(product.ID), 10))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin/admin.templ`, Line: 229, Col: 104}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\" hx-swap=\"outerHTML\">Reject</button></div></div></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(products) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"alert alert-info\"><span>No products pending review.</span></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<div class=\"alert alert-info\"><span>No products pending review.</span></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout("Pending Products").Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout("Pending Products").Render(templ.WithChildren(ctx, templ_7745c5c3_Var33), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -430,12 +760,12 @@ func Login() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var25 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var25 == nil {
-			templ_7745c5c3_Var25 = templ.NopComponent
+		templ_7745c5c3_Var44 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var44 == nil {
+			templ_7745c5c3_Var44 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<!doctype html><html lang=\"en\" data-theme=\"light\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Login - OzMade Admin</title><link href=\"https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.min.css\" rel=\"stylesheet\" type=\"text/css\"><script src=\"https://cdn.tailwindcss.com\"></script><script src=\"https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js\"></script><script src=\"https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js\"></script></head><body class=\"min-h-screen bg-base-200 flex items-center justify-center\"><div class=\"card w-96 bg-base-100 shadow-xl\"><div class=\"card-body\"><h2 class=\"card-title justify-center mb-4\">OzMade Admin Login</h2><div class=\"tabs tabs-boxed mb-4\"><a class=\"tab tab-active\" id=\"email-tab\" onclick=\"switchTab('email')\">Email</a> <a class=\"tab\" id=\"phone-tab\" onclick=\"switchTab('phone')\">Phone</a></div><!-- Email Login --><div id=\"email-form\"><div class=\"form-control\"><label class=\"label\"><span class=\"label-text\">Email</span></label> <input type=\"email\" id=\"email\" placeholder=\"admin@example.com\" class=\"input input-bordered\"></div><div class=\"form-control mt-4\"><label class=\"label\"><span class=\"label-text\">Password</span></label> <input type=\"password\" id=\"password\" placeholder=\"••••••••\" class=\"input input-bordered\"></div><div class=\"form-control mt-6\"><button class=\"btn btn-primary\" onclick=\"loginWithEmail()\">Login with Email</button></div></div><!-- Phone Login --><div id=\"phone-form\" class=\"hidden\"><div class=\"form-control\"><label class=\"label\"><span class=\"label-text\">Phone Number</span></label> <input type=\"tel\" id=\"phone\" placeholder=\"+77001234567\" class=\"input input-bordered\"></div><div id=\"recaptcha-container\" class=\"mt-4\"></div><div class=\"form-control mt-6\" id=\"send-code-container\"><button class=\"btn btn-primary\" id=\"send-code-btn\" onclick=\"sendOTP()\">Send SMS Code</button></div><div id=\"otp-container\" class=\"hidden mt-4\"><div class=\"form-control\"><label class=\"label\"><span class=\"label-text\">SMS Code</span></label> <input type=\"text\" id=\"otp\" placeholder=\"123456\" class=\"input input-bordered\"></div><div class=\"form-control mt-6\"><button class=\"btn btn-primary\" onclick=\"verifyOTP()\">Verify Code</button></div></div></div><div id=\"error-msg\" class=\"text-error text-sm mt-4 hidden text-center\"></div></div></div><script>\r\n\t\t\t\tconst firebaseConfig = {\r\n\r\n                  apiKey: \"AIzaSyAlXp275d1AAu36fEQ0KtHV4M_bWEwCXwg\",\r\n\r\n                  authDomain: \"ozmade-9758e.firebaseapp.com\",\r\n\r\n                  projectId: \"ozmade-9758e\",\r\n\r\n                  storageBucket: \"ozmade-9758e.firebasestorage.app\",\r\n\r\n                  messagingSenderId: \"281183625562\",\r\n\r\n                  appId: \"1:281183625562:web:a2e0a50c3dcc596ab11363\",\r\n\r\n                  measurementId: \"G-D6ND82S0ZZ\"\r\n\r\n                };\r\n\t\t\t\tfirebase.initializeApp(firebaseConfig);\r\n\r\n\t\t\t\tlet confirmationResult = null;\r\n\r\n\t\t\t\twindow.onload = function() {\r\n\t\t\t\t\twindow.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {\r\n\t\t\t\t\t\t'size': 'normal',\r\n\t\t\t\t\t\t'callback': (response) => {}\r\n\t\t\t\t\t});\r\n\t\t\t\t};\r\n\r\n\t\t\t\tfunction switchTab(type) {\r\n\t\t\t\t\tconst emailTab = document.getElementById('email-tab');\r\n\t\t\t\t\tconst phoneTab = document.getElementById('phone-tab');\r\n\t\t\t\t\tconst emailForm = document.getElementById('email-form');\r\n\t\t\t\t\tconst phoneForm = document.getElementById('phone-form');\r\n\t\t\t\t\tconst errorMsg = document.getElementById('error-msg');\r\n\r\n\t\t\t\t\terrorMsg.classList.add('hidden');\r\n\r\n\t\t\t\t\tif (type === 'email') {\r\n\t\t\t\t\t\temailTab.classList.add('tab-active');\r\n\t\t\t\t\t\tphoneTab.classList.remove('tab-active');\r\n\t\t\t\t\t\temailForm.classList.remove('hidden');\r\n\t\t\t\t\t\tphoneForm.classList.add('hidden');\r\n\t\t\t\t\t} else {\r\n\t\t\t\t\t\tphoneTab.classList.add('tab-active');\r\n\t\t\t\t\t\temailTab.classList.remove('tab-active');\r\n\t\t\t\t\t\tphoneForm.classList.remove('hidden');\r\n\t\t\t\t\t\temailForm.classList.add('hidden');\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function loginWithEmail() {\r\n\t\t\t\t\tconst email = document.getElementById('email').value;\r\n\t\t\t\t\tconst password = document.getElementById('password').value;\r\n\t\t\t\t\tconst errorMsg = document.getElementById('error-msg');\r\n\t\t\t\t\t\r\n\t\t\t\t\ttry {\r\n\t\t\t\t\t\tconst userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);\r\n\t\t\t\t\t\thandleSuccess(userCredential.user);\r\n\t\t\t\t\t} catch (error) {\r\n\t\t\t\t\t\tshowError(error.message);\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function sendOTP() {\r\n\t\t\t\t\tconst phoneNumber = document.getElementById('phone').value;\r\n\t\t\t\t\tconst appVerifier = window.recaptchaVerifier;\r\n\t\t\t\t\t\r\n\t\t\t\t\ttry {\r\n\t\t\t\t\t\tconfirmationResult = await firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier);\r\n\t\t\t\t\t\tdocument.getElementById('send-code-container').classList.add('hidden');\r\n\t\t\t\t\t\tdocument.getElementById('otp-container').classList.remove('hidden');\r\n\t\t\t\t\t\tdocument.getElementById('recaptcha-container').classList.add('hidden');\r\n\t\t\t\t\t} catch (error) {\r\n\t\t\t\t\t\tshowError(error.message);\r\n\t\t\t\t\t\twindow.recaptchaVerifier.render().then(widgetId => {\r\n\t\t\t\t\t\t\tgrecaptcha.reset(widgetId);\r\n\t\t\t\t\t\t});\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function verifyOTP() {\r\n\t\t\t\t\tconst code = document.getElementById('otp').value;\r\n\t\t\t\t\ttry {\r\n\t\t\t\t\t\tconst result = await confirmationResult.confirm(code);\r\n\t\t\t\t\t\thandleSuccess(result.user);\r\n\t\t\t\t\t} catch (error) {\r\n\t\t\t\t\t\tshowError(error.message);\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function handleSuccess(user) {\r\n\t\t\t\t\tconst token = await user.getIdToken();\r\n\t\t\t\t\tdocument.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;\r\n\t\t\t\t\twindow.location.href = \"/admin/ui/users\";\r\n\t\t\t\t}\r\n\r\n\t\t\t\tfunction showError(msg) {\r\n\t\t\t\t\tconst errorMsg = document.getElementById('error-msg');\r\n\t\t\t\t\terrorMsg.innerText = msg;\r\n\t\t\t\t\terrorMsg.classList.remove('hidden');\r\n\t\t\t\t}\r\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<!doctype html><html lang=\"en\" data-theme=\"light\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Login - OzMade Admin</title><link href=\"https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.min.css\" rel=\"stylesheet\" type=\"text/css\"><script src=\"https://cdn.tailwindcss.com\"></script><script src=\"https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js\"></script><script src=\"https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js\"></script></head><body class=\"min-h-screen bg-base-200 flex items-center justify-center\"><div class=\"card w-96 bg-base-100 shadow-xl\"><div class=\"card-body\"><h2 class=\"card-title justify-center mb-4\">OzMade Admin Login</h2><div class=\"tabs tabs-boxed mb-4\"><a class=\"tab tab-active\" id=\"email-tab\" onclick=\"switchTab('email')\">Email</a> <a class=\"tab\" id=\"phone-tab\" onclick=\"switchTab('phone')\">Phone</a></div><!-- Email Login --><div id=\"email-form\"><div class=\"form-control\"><label class=\"label\"><span class=\"label-text\">Email</span></label> <input type=\"email\" id=\"email\" placeholder=\"admin@example.com\" class=\"input input-bordered\"></div><div class=\"form-control mt-4\"><label class=\"label\"><span class=\"label-text\">Password</span></label> <input type=\"password\" id=\"password\" placeholder=\"••••••••\" class=\"input input-bordered\"></div><div class=\"form-control mt-6\"><button class=\"btn btn-primary\" onclick=\"loginWithEmail()\">Login with Email</button></div></div><!-- Phone Login --><div id=\"phone-form\" class=\"hidden\"><div class=\"form-control\"><label class=\"label\"><span class=\"label-text\">Phone Number</span></label> <input type=\"tel\" id=\"phone\" placeholder=\"+77001234567\" class=\"input input-bordered\"></div><div id=\"recaptcha-container\" class=\"mt-4\"></div><div class=\"form-control mt-6\" id=\"send-code-container\"><button class=\"btn btn-primary\" id=\"send-code-btn\" onclick=\"sendOTP()\">Send SMS Code</button></div><div id=\"otp-container\" class=\"hidden mt-4\"><div class=\"form-control\"><label class=\"label\"><span class=\"label-text\">SMS Code</span></label> <input type=\"text\" id=\"otp\" placeholder=\"123456\" class=\"input input-bordered\"></div><div class=\"form-control mt-6\"><button class=\"btn btn-primary\" onclick=\"verifyOTP()\">Verify Code</button></div></div></div><div id=\"error-msg\" class=\"text-error text-sm mt-4 hidden text-center\"></div></div></div><script>\r\n\t\t\t\tconst firebaseConfig = {\r\n\r\n                  apiKey: \"AIzaSyAlXp275d1AAu36fEQ0KtHV4M_bWEwCXwg\",\r\n\r\n                  authDomain: \"ozmade-9758e.firebaseapp.com\",\r\n\r\n                  projectId: \"ozmade-9758e\",\r\n\r\n                  storageBucket: \"ozmade-9758e.firebasestorage.app\",\r\n\r\n                  messagingSenderId: \"281183625562\",\r\n\r\n                  appId: \"1:281183625562:web:a2e0a50c3dcc596ab11363\",\r\n\r\n                  measurementId: \"G-D6ND82S0ZZ\"\r\n\r\n                };\r\n\t\t\t\tfirebase.initializeApp(firebaseConfig);\r\n\r\n\t\t\t\tlet confirmationResult = null;\r\n\r\n\t\t\t\twindow.onload = function() {\r\n\t\t\t\t\twindow.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {\r\n\t\t\t\t\t\t'size': 'normal',\r\n\t\t\t\t\t\t'callback': (response) => {}\r\n\t\t\t\t\t});\r\n\t\t\t\t};\r\n\r\n\t\t\t\tfunction switchTab(type) {\r\n\t\t\t\t\tconst emailTab = document.getElementById('email-tab');\r\n\t\t\t\t\tconst phoneTab = document.getElementById('phone-tab');\r\n\t\t\t\t\tconst emailForm = document.getElementById('email-form');\r\n\t\t\t\t\tconst phoneForm = document.getElementById('phone-form');\r\n\t\t\t\t\tconst errorMsg = document.getElementById('error-msg');\r\n\r\n\t\t\t\t\terrorMsg.classList.add('hidden');\r\n\r\n\t\t\t\t\tif (type === 'email') {\r\n\t\t\t\t\t\temailTab.classList.add('tab-active');\r\n\t\t\t\t\t\tphoneTab.classList.remove('tab-active');\r\n\t\t\t\t\t\temailForm.classList.remove('hidden');\r\n\t\t\t\t\t\tphoneForm.classList.add('hidden');\r\n\t\t\t\t\t} else {\r\n\t\t\t\t\t\tphoneTab.classList.add('tab-active');\r\n\t\t\t\t\t\temailTab.classList.remove('tab-active');\r\n\t\t\t\t\t\tphoneForm.classList.remove('hidden');\r\n\t\t\t\t\t\temailForm.classList.add('hidden');\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function loginWithEmail() {\r\n\t\t\t\t\tconst email = document.getElementById('email').value;\r\n\t\t\t\t\tconst password = document.getElementById('password').value;\r\n\t\t\t\t\tconst errorMsg = document.getElementById('error-msg');\r\n\t\t\t\t\t\r\n\t\t\t\t\ttry {\r\n\t\t\t\t\t\tconst userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);\r\n\t\t\t\t\t\thandleSuccess(userCredential.user);\r\n\t\t\t\t\t} catch (error) {\r\n\t\t\t\t\t\tshowError(error.message);\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function sendOTP() {\r\n\t\t\t\t\tconst phoneNumber = document.getElementById('phone').value;\r\n\t\t\t\t\tconst appVerifier = window.recaptchaVerifier;\r\n\t\t\t\t\t\r\n\t\t\t\t\ttry {\r\n\t\t\t\t\t\tconfirmationResult = await firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier);\r\n\t\t\t\t\t\tdocument.getElementById('send-code-container').classList.add('hidden');\r\n\t\t\t\t\t\tdocument.getElementById('otp-container').classList.remove('hidden');\r\n\t\t\t\t\t\tdocument.getElementById('recaptcha-container').classList.add('hidden');\r\n\t\t\t\t\t} catch (error) {\r\n\t\t\t\t\t\tshowError(error.message);\r\n\t\t\t\t\t\twindow.recaptchaVerifier.render().then(widgetId => {\r\n\t\t\t\t\t\t\tgrecaptcha.reset(widgetId);\r\n\t\t\t\t\t\t});\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function verifyOTP() {\r\n\t\t\t\t\tconst code = document.getElementById('otp').value;\r\n\t\t\t\t\ttry {\r\n\t\t\t\t\t\tconst result = await confirmationResult.confirm(code);\r\n\t\t\t\t\t\thandleSuccess(result.user);\r\n\t\t\t\t\t} catch (error) {\r\n\t\t\t\t\t\tshowError(error.message);\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\r\n\t\t\t\tasync function handleSuccess(user) {\r\n\t\t\t\t\tconst token = await user.getIdToken();\r\n\t\t\t\t\tdocument.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;\r\n\t\t\t\t\twindow.location.href = \"/admin/ui/users\";\r\n\t\t\t\t}\r\n\r\n\t\t\t\tfunction showError(msg) {\r\n\t\t\t\t\tconst errorMsg = document.getElementById('error-msg');\r\n\t\t\t\t\terrorMsg.innerText = msg;\r\n\t\t\t\t\terrorMsg.classList.remove('hidden');\r\n\t\t\t\t}\r\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

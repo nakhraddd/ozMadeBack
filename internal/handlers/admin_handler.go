@@ -36,6 +36,27 @@ func (h *AdminHandler) UIUsers(c *gin.Context) {
 	Render(c, http.StatusOK, admin.UserList(users))
 }
 
+func (h *AdminHandler) UIUser(c *gin.Context) {
+	userIDStr := c.Param("id")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	user, err := h.AdminService.GetUserByID(uint(userID))
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to fetch user")
+		return
+	}
+	if user == nil {
+		c.String(http.StatusNotFound, "User not found")
+		return
+	}
+
+	Render(c, http.StatusOK, admin.UserDetails(*user))
+}
+
 func (h *AdminHandler) UIPendingProducts(c *gin.Context) {
 	products, err := h.AdminService.GetPendingReviewProducts()
 	if err != nil {
