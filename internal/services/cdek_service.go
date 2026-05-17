@@ -66,15 +66,15 @@ type CDEKCalculateRequest struct {
 
 // CDEKLocationRequest is a simplified location for calculation
 type CDEKLocationRequest struct {
-	Code        int     `json:"code,omitempty"`
-	FiasGuid    string  `json:"fias_guid,omitempty"`
-	KladrCode   string  `json:"kladr_code,omitempty"`
-	PostalCode  string  `json:"postal_code,omitempty"`
-	CountryCode string  `json:"country_code,omitempty"`
-	City        string  `json:"city,omitempty"`
-	Address     string  `json:"address,omitempty"`
-	Latitude    float64 `json:"latitude,omitempty"`
-	Longitude   float64 `json:"longitude,omitempty"`
+	Code        int      `json:"code,omitempty"`
+	FiasGuid    string   `json:"fias_guid,omitempty"`
+	KladrCode   string   `json:"kladr_code,omitempty"`
+	PostalCode  string   `json:"postal_code,omitempty"`
+	CountryCode string   `json:"country_code,omitempty"`
+	City        string   `json:"city,omitempty"`
+	Address     string   `json:"address,omitempty"`
+	Latitude    *float64 `json:"latitude,omitempty"`  // Changed to pointer
+	Longitude   *float64 `json:"longitude,omitempty"` // Changed to pointer
 }
 
 // CDEKPackageRequest represents a package in CDEK calculation API
@@ -226,22 +226,33 @@ func (s *CDEKService) CalculateIntercityFare(reqData *dto.IntercityEstimateReque
 	}
 
 	// 3. Construct CDEK API request payload
+	fromLocationRequest := CDEKLocationRequest{
+		Code:    fromCDEKLocation.Code,
+		Address: reqData.FromAddress.FullAddress,
+	}
+	if reqData.FromAddress.Latitude != nil {
+		fromLocationRequest.Latitude = reqData.FromAddress.Latitude
+	}
+	if reqData.FromAddress.Longitude != nil {
+		fromLocationRequest.Longitude = reqData.FromAddress.Longitude
+	}
+
+	toLocationRequest := CDEKLocationRequest{
+		Code:    toCDEKLocation.Code,
+		Address: reqData.ToAddress.FullAddress,
+	}
+	if reqData.ToAddress.Latitude != nil {
+		toLocationRequest.Latitude = reqData.ToAddress.Latitude
+	}
+	if reqData.ToAddress.Longitude != nil {
+		toLocationRequest.Longitude = reqData.ToAddress.Longitude
+	}
+
 	cdekReq := CDEKCalculateRequest{
-		Type:       1,   // Door-to-door delivery
-		TariffCode: 136, // Example: specific tariff code for express delivery (adjust as needed)
-		FromLocation: CDEKLocationRequest{
-			Code: fromCDEKLocation.Code,
-			// CDEK API might prefer coordinates for precise calculation if address is also provided
-			Latitude:  reqData.FromAddress.Latitude,
-			Longitude: reqData.FromAddress.Longitude,
-			Address:   reqData.FromAddress.FullAddress,
-		},
-		ToLocation: CDEKLocationRequest{
-			Code:      toCDEKLocation.Code,
-			Latitude:  reqData.ToAddress.Latitude,
-			Longitude: reqData.ToAddress.Longitude,
-			Address:   reqData.ToAddress.FullAddress,
-		},
+		Type:         1,   // Door-to-door delivery
+		TariffCode:   136, // Example: specific tariff code for express delivery (adjust as needed)
+		FromLocation: fromLocationRequest,
+		ToLocation:   toLocationRequest,
 		Packages: []CDEKPackageRequest{
 			{
 				Number: uuid.New().String(), // Generate a unique number for the package

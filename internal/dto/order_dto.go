@@ -9,10 +9,10 @@ import (
 
 // AddressDetails for intercity delivery estimation request
 type AddressDetails struct {
-	City        string  `json:"city" binding:"required"`
-	FullAddress string  `json:"fullAddress" binding:"required"`
-	Latitude    float64 `json:"latitude" binding:"required"`
-	Longitude   float64 `json:"longitude" binding:"required"`
+	City        string   `json:"city" binding:"required"`
+	FullAddress string   `json:"fullAddress" binding:"required"`
+	Latitude    *float64 `json:"latitude"`  // Removed binding:"required"
+	Longitude   *float64 `json:"longitude"` // Removed binding:"required"
 }
 
 // PackageDetails for intercity delivery estimation request
