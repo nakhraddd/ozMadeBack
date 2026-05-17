@@ -2,6 +2,8 @@ package admin
 
 import (
     "ozMadeBack/internal/models"
+    "fmt"
+    "strconv"
 )
 
 templ Layout(title string) {
@@ -72,7 +74,7 @@ templ UserList(users []models.User) {
 				<tbody>
 					for _, user := range users {
 						<tr>
-							<td>{ templ.FormatUint64(uint64(user.ID)) }</td>
+							<td>{ strconv.FormatUint(uint64(user.ID), 10) }</td>
 							<td>{ user.Name }</td>
 							<td>{ user.Email }</td>
 							<td>{ user.PhoneNumber }</td>
@@ -84,7 +86,7 @@ templ UserList(users []models.User) {
 							<td>
 								<div class="flex gap-2">
 									<button class="btn btn-sm btn-ghost">Edit</button>
-									<button class="btn btn-sm btn-error btn-outline" hx-delete={ "/admin/users/" + templ.FormatUint64(uint64(user.ID)) } hx-confirm="Are you sure?">Delete</button>
+									<button class="btn btn-sm btn-error btn-outline" hx-delete={ "/admin/users/" + strconv.FormatUint(uint64(user.ID), 10) } hx-confirm="Are you sure?">Delete</button>
 								</div>
 							</td>
 						</tr>
@@ -100,7 +102,7 @@ templ ProductPending(products []models.Product) {
         <h1 class="text-2xl font-bold mb-6">Pending Product Reviews</h1>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             for _, product := range products {
-                <div class="card bg-base-100 shadow-xl" id={ "product-" + templ.FormatUint64(uint64(product.ID)) }>
+                <div class="card bg-base-100 shadow-xl" id={ "product-" + strconv.FormatUint(uint64(product.ID), 10) }>
                     <figure class="px-4 pt-4">
                         <img src={ product.ImageName } alt={ product.Title } class="rounded-xl h-48 w-full object-cover" />
                     </figure>
@@ -108,18 +110,18 @@ templ ProductPending(products []models.Product) {
                         <h2 class="card-title">{ product.Title }</h2>
                         <p class="text-sm line-clamp-2">{ product.Description }</p>
                         <div class="flex justify-between items-center mt-4">
-                            <span class="font-bold text-lg">{ templ.FormatUint64(uint64(product.Cost)) } ₸</span>
+                            <span class="font-bold text-lg">{ fmt.Sprintf("%.0f", product.Cost) } ₸</span>
                             <div class="card-actions">
                                 <button 
                                     class="btn btn-sm btn-success" 
-                                    hx-post={ "/admin/products/" + templ.FormatUint64(uint64(product.ID)) + "/approve" }
-                                    hx-target={ "#product-" + templ.FormatUint64(uint64(product.ID)) }
+                                    hx-post={ "/admin/products/" + strconv.FormatUint(uint64(product.ID), 10) + "/approve" }
+                                    hx-target={ "#product-" + strconv.FormatUint(uint64(product.ID), 10) }
                                     hx-swap="outerHTML"
                                 >Approve</button>
                                 <button 
                                     class="btn btn-sm btn-error"
-                                    hx-post={ "/admin/products/" + templ.FormatUint64(uint64(product.ID)) + "/reject" }
-                                    hx-target={ "#product-" + templ.FormatUint64(uint64(product.ID)) }
+                                    hx-post={ "/admin/products/" + strconv.FormatUint(uint64(product.ID), 10) + "/reject" }
+                                    hx-target={ "#product-" + strconv.FormatUint(uint64(product.ID), 10) }
                                     hx-swap="outerHTML"
                                 >Reject</button>
                             </div>

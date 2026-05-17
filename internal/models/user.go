@@ -8,6 +8,7 @@ type User struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	FirebaseUID string    `gorm:"uniqueIndex" json:"firebase_uid"`
 	PhoneNumber string    `json:"phone_number"`
+	Email       string    `json:"email"`
 	PhotoUrl    string    `json:"photo_url"`
 	Name        string    `json:"name"`
 	Address     string    `json:"address"`
