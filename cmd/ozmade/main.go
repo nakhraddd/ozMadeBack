@@ -58,16 +58,21 @@ func main() {
 
 	services.InitGCSService(bucketName, storageClient)
 	services.BootstrapProductIndex(context.Background())
+
+	// Initialize services and handlers
+	cdekService := services.NewCDEKService() // Initialize CDEKService
 	sellerHandler := handlers.NewSellerHandler(services.GCS)
-	adminHandler := handlers.NewAdminHandler(database.DB) // Initialize AdminHandler
+	adminHandler := handlers.NewAdminHandler(database.DB)
+	orderHandler := handlers.NewOrderHandler(cdekService) // Initialize OrderHandler
 
 	r := gin.Default()
 
 	// WebSocket route
 	r.GET("/ws", realtime.HandleWebSocket)
 
-	routes.SetupRoutes(r, sellerHandler, adminHandler, internalAuth.Client) // Pass internalAuth.Client
-	routes.SellerRoutes(r, sellerHandler, internalAuth.Client)              // Pass internalAuth.Client
+	// Setup routes, passing the new orderHandler
+	routes.SetupRoutes(r, sellerHandler, adminHandler, orderHandler, internalAuth.Client)
+	routes.SellerRoutes(r, sellerHandler, internalAuth.Client)
 
 	r.Run("0.0.0.0:8080")
 }

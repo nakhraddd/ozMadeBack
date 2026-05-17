@@ -9,7 +9,7 @@ import (
 )
 
 // SetupRoutes initializes all application routes
-func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, adminHandler *handlers.AdminHandler, authClient *firebaseAuth.Client) {
+func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, adminHandler *handlers.AdminHandler, orderHandler *handlers.OrderHandler, authClient *firebaseAuth.Client) {
 	// Public routes
 	r.GET("/categories", handlers.GetCategories)
 	r.GET("/ads", handlers.GetAds)
@@ -46,7 +46,7 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, adminHand
 		userRoutes.PATCH("/fcm-token", handlers.UpdateFCMToken)
 		userRoutes.POST("/favorites/:id", handlers.ToggleFavorite)
 		userRoutes.GET("/favorites", handlers.GetFavorites)
-		userRoutes.GET("/orders", handlers.GetBuyerOrders)
+		userRoutes.GET("/orders", handlers.GetBuyerOrders) // Use orderHandler
 		userRoutes.GET("/upload-url", handlers.GetProfileUploadURL)
 	}
 
@@ -61,10 +61,17 @@ func SetupRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, adminHand
 	orderRoutes := r.Group("/orders")
 	orderRoutes.Use(middleware.AuthMiddleware(authClient)) // Use the new middleware
 	{
-		orderRoutes.GET("", handlers.GetBuyerOrders)
-		orderRoutes.POST("", handlers.CreateOrder)
-		orderRoutes.POST("/:id/cancel", handlers.CancelOrderBuyer)
-		orderRoutes.POST("/:id/received", handlers.BuyerReceived)
+		orderRoutes.GET("", handlers.GetBuyerOrders)               // Use orderHandler
+		orderRoutes.POST("", handlers.CreateOrder)                 // Use orderHandler
+		orderRoutes.POST("/:id/cancel", handlers.CancelOrderBuyer) // Use orderHandler
+		orderRoutes.POST("/:id/received", handlers.BuyerReceived)  // Use orderHandler
+	}
+
+	// New Delivery Routes
+	deliveryRoutes := r.Group("/delivery")
+	deliveryRoutes.Use(middleware.AuthMiddleware(authClient)) // Protect delivery estimation
+	{
+		deliveryRoutes.POST("/intercity/estimate", orderHandler.EstimateIntercityDelivery) // New intercity estimate endpoint
 	}
 
 	chatRoutes := r.Group("/chats")

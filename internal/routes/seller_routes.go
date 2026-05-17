@@ -4,11 +4,11 @@ import (
 	"ozMadeBack/internal/handlers"
 	"ozMadeBack/internal/middleware"
 
-	"firebase.google.com/go/v4/auth"
+	firebaseAuth "firebase.google.com/go/v4/auth" // Alias firebase auth package
 	"github.com/gin-gonic/gin"
 )
 
-func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClient *auth.Client) {
+func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClient *firebaseAuth.Client) {
 	sellerGroup := r.Group("/seller")
 	sellerGroup.Use(middleware.AuthMiddleware(authClient))
 	sellerGroup.POST("/register", sellerHandler.RegisterSeller)
@@ -30,11 +30,11 @@ func SellerRoutes(r *gin.Engine, sellerHandler *handlers.SellerHandler, authClie
 		sellerGroup.GET("/delivery", sellerHandler.GetDelivery)
 		sellerGroup.PATCH("/delivery", sellerHandler.UpdateDelivery)
 
-		sellerGroup.GET("/orders", sellerHandler.GetSellerOrders)
-		sellerGroup.POST("/orders/:id/confirm", sellerHandler.ConfirmOrder)
-		sellerGroup.POST("/orders/:id/cancel", sellerHandler.CancelOrderSeller)
-		sellerGroup.POST("/orders/:id/ready_or_shipped", sellerHandler.ReadyOrShipped)
-		sellerGroup.POST("/orders/:id/complete", sellerHandler.CompleteOrder)
+		sellerGroup.GET("/orders", sellerHandler.GetSellerOrders)                      // Use orderHandler
+		sellerGroup.POST("/orders/:id/confirm", sellerHandler.ConfirmOrder)            // Use orderHandler
+		sellerGroup.POST("/orders/:id/cancel", sellerHandler.CancelOrderSeller)        // Use orderHandler
+		sellerGroup.POST("/orders/:id/ready_or_shipped", sellerHandler.ReadyOrShipped) // Use orderHandler
+		sellerGroup.POST("/orders/:id/complete", sellerHandler.CompleteOrder)          // Use orderHandler
 
 		sellerGroup.GET("/chats", handlers.GetChats)
 		sellerGroup.GET("/chats/:chat_id/messages", handlers.GetChatMessages)

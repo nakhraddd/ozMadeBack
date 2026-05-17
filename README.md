@@ -218,7 +218,7 @@ Changes order status to `CONFIRMED` and generates a `confirm_code` for the buyer
 
 ---
 
-### Admin Panel (Retool Integration)
+### Admin Panel
 
 This section describes the API endpoints designed for the administrative panel, intended to be consumed by a tool like Retool for managing application data and operations. All admin endpoints require authentication and an "admin" user role.
 

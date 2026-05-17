@@ -15,6 +15,49 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// OrderHandler struct to hold dependencies
+type OrderHandler struct {
+	CDEKService *services.CDEKService
+}
+
+// NewOrderHandler creates a new OrderHandler
+func NewOrderHandler(cdekService *services.CDEKService) *OrderHandler {
+	return &OrderHandler{
+		CDEKService: cdekService,
+	}
+}
+
+// EstimateIntercityDelivery handles requests to estimate intercity delivery costs
+func (h *OrderHandler) EstimateIntercityDelivery(c *gin.Context) {
+	var req dto.IntercityEstimateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// Basic validations
+	if req.FromAddress.City == req.ToAddress.City {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Origin and destination cities cannot be the same for intercity delivery"})
+		return
+	}
+	if req.Package.WeightGrams <= 0 || req.Package.HeightCm <= 0 || req.Package.WidthCm <= 0 || req.Package.DepthCm <= 0 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Package weight and dimensions must be positive"})
+		return
+	}
+	if req.FromAddress.FullAddress == "" || req.FromAddress.City == "" || req.ToAddress.FullAddress == "" || req.ToAddress.City == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Full address and city are required for both origin and destination"})
+		return
+	}
+
+	estimate, err := h.CDEKService.CalculateIntercityFare(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, estimate)
+}
+
 func CreateOrder(c *gin.Context) {
 	userID := c.GetUint("userID")
 
@@ -65,6 +108,8 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	validDelivery := false
+	var intercityDetails *models.IntercityDeliveryDetails
+
 	switch input.DeliveryType {
 	case models.DeliveryTypePickup:
 		if seller.PickupEnabled {
@@ -104,9 +149,55 @@ func CreateOrder(c *gin.Context) {
 	case models.DeliveryTypeIntercity:
 		if seller.IntercityEnabled {
 			validDelivery = true
-			if finalShippingAddressText == nil || *finalShippingAddressText == "" {
-				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "shipping_address_text is required for INTERCITY"})
+			if input.IntercityDelivery == nil {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Intercity delivery details are required for INTERCITY delivery type"})
 				return
+			}
+			// Map DTO to model struct
+			intercityDetails = &models.IntercityDeliveryDetails{
+				Provider:          input.IntercityDelivery.Provider,
+				Price:             input.IntercityDelivery.Price,
+				Currency:          input.IntercityDelivery.Currency,
+				MinDays:           input.IntercityDelivery.MinDays,
+				MaxDays:           input.IntercityDelivery.MaxDays,
+				EstimatedDateFrom: input.IntercityDelivery.EstimatedDateFrom,
+				EstimatedDateTo:   input.IntercityDelivery.EstimatedDateTo,
+				FromAddress: models.AddressDetails{
+					City:        input.IntercityDelivery.FromAddress.City,
+					FullAddress: input.IntercityDelivery.FromAddress.FullAddress,
+					Latitude:    input.IntercityDelivery.FromAddress.Latitude,
+					Longitude:   input.IntercityDelivery.FromAddress.Longitude,
+				},
+				ToAddress: models.AddressDetails{
+					City:        input.IntercityDelivery.ToAddress.City,
+					FullAddress: input.IntercityDelivery.ToAddress.FullAddress,
+					Latitude:    input.IntercityDelivery.ToAddress.Latitude,
+					Longitude:   input.IntercityDelivery.ToAddress.Longitude,
+				},
+				Package: models.PackageDetails{
+					WeightGrams: input.IntercityDelivery.Package.WeightGrams,
+					HeightCm:    input.IntercityDelivery.Package.HeightCm,
+					WidthCm:     input.IntercityDelivery.Package.WidthCm,
+					DepthCm:     input.IntercityDelivery.Package.DepthCm,
+				},
+				ReceiverName:    input.IntercityDelivery.ReceiverName,
+				ReceiverPhone:   input.IntercityDelivery.ReceiverPhone,
+				ReceiverAddress: input.IntercityDelivery.ReceiverAddress,
+			}
+
+			// Additional validation for intercity details
+			if intercityDetails.ReceiverName == "" || intercityDetails.ReceiverPhone == "" || intercityDetails.ReceiverAddress == "" {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Receiver name, phone, and address are required for intercity delivery"})
+				return
+			}
+			if finalShippingAddressText == nil || *finalShippingAddressText == "" {
+				// Use receiver address as shipping address if not provided separately
+				finalShippingAddressText = &intercityDetails.ReceiverAddress
+			}
+			if finalShippingLat == nil || finalShippingLng == nil {
+				// Use receiver address coordinates as shipping coordinates if not provided separately
+				finalShippingLat = &intercityDetails.ToAddress.Latitude
+				finalShippingLng = &intercityDetails.ToAddress.Longitude
 			}
 		}
 	default:
@@ -120,6 +211,9 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	totalCost := product.Cost * float64(input.Quantity)
+	if intercityDetails != nil {
+		totalCost += intercityDetails.Price // Add shipping cost to total
+	}
 
 	confirmCode := ""
 	if input.DeliveryType == models.DeliveryTypePickup || input.DeliveryType == models.DeliveryTypeMyDelivery {
@@ -139,6 +233,7 @@ func CreateOrder(c *gin.Context) {
 		ShippingLng:         finalShippingLng,
 		ShippingComment:     input.ShippingComment,
 		ConfirmCode:         confirmCode,
+		IntercityDelivery:   intercityDetails, // Save intercity details
 	}
 
 	if err := database.DB.Create(&order).Error; err != nil {
@@ -194,8 +289,8 @@ func GetCheckoutOptions(c *gin.Context) {
 			Code:           models.DeliveryTypeIntercity,
 			Title:          "Intercity delivery",
 			Enabled:        seller.IntercityEnabled,
-			RequiresFields: []string{"shipping_address_text"},
-			Description:    "Requires shipping address",
+			RequiresFields: []string{"shipping_address_text", "intercity_delivery"}, // intercity_delivery is a complex object
+			Description:    "Requires shipping address and intercity delivery details",
 		},
 	}
 
@@ -342,7 +437,7 @@ func shouldExposeConfirmCode(order models.Order) bool {
 }
 
 func hasValidCoordinates(lat, lng *float64) bool {
-	return lat != nil && lng != nil
+	return lat != nil && lng != nil && *lat != 0 && *lng != 0 // Added check for non-zero coordinates
 }
 
 func calculateDistanceKm(lat1, lng1, lat2, lng2 float64) float64 {
@@ -388,6 +483,7 @@ func mapOrderToDto(order models.Order, product models.Product, seller models.Sel
 		ShippingLat:         order.ShippingLat,
 		ShippingLng:         order.ShippingLng,
 		ShippingComment:     order.ShippingComment,
+		IntercityDelivery:   order.IntercityDelivery, // Include intercity details
 	}
 
 	if shouldExposeConfirmCode(order) {
